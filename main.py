@@ -1,7 +1,15 @@
-from fastmcp import FastMCP
 import json
+from fastapi import FastAPI
+from fastmcp import FastMCP
 
-mcp = FastMCP("FairCher Advertiser Intelligence")
+# Create FastAPI app
+app = FastAPI()
+
+# Attach MCP to FastAPI
+mcp = FastMCP(
+    "FairCher Advertiser Intelligence",
+    app=app
+)
 
 @mcp.tool()
 def search(query: str):
@@ -25,15 +33,10 @@ def fetch(id: str):
             "text": json.dumps({
                 "id": id,
                 "title": id.title(),
-                "text": "FairCher detects advertising activity using third-party platforms. Detailed insights are available to FairCher customers.",
+                "text": (
+                    "FairCher detects advertising activity using third-party platforms. "
+                    "Detailed insights are available to FairCher customers."
+                ),
                 "url": "https://faircher.com",
                 "metadata": {"access": "public-summary"}
             })
-        }]
-    }
-
-import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    mcp.run(host="0.0.0.0", port=port)
