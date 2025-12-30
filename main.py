@@ -40,3 +40,10 @@ def fetch(id: str):
                 "url": "https://faircher.com",
                 "metadata": {"access": "public-summary"}
             })
+        }]
+    }
+
+# Health check (important)
+@app.get("/")
+def root():
+    return {"status": "FairCher MCP server online"}
