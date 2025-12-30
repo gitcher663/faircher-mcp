@@ -1,5 +1,6 @@
 import json
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from fastmcp import FastMCP
 
 # Create FastAPI app
@@ -11,6 +12,7 @@ mcp = FastMCP(
     app=app
 )
 
+# MCP search tool
 @mcp.tool()
 def search(query: str):
     results = [{
@@ -25,6 +27,7 @@ def search(query: str):
         }]
     }
 
+# MCP fetch tool
 @mcp.tool()
 def fetch(id: str):
     return {
@@ -43,7 +46,14 @@ def fetch(id: str):
         }]
     }
 
-# Health check (important)
+# Health check (Cloud Run)
 @app.get("/")
 def root():
     return {"status": "FairCher MCP server online"}
+
+# OpenAI domain verification endpoint
+@app.get("/.well-known/openai-apps-challenge")
+def openai_verify():
+    return PlainTextResponse(
+        "R8RPkntk796SA6rB3_JV9QjO7LeEDF2VpGn5BVZ8pU"
+    )
