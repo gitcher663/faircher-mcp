@@ -14,7 +14,7 @@ async def openai_apps_challenge():
 
 # ---- FastMCP server ----
 mcp = FastMCP(
-    name="Faircher MCP",
+    name="Faircher",
     description="Faircher MCP server"
 )
 
