@@ -5,11 +5,12 @@ mcp = FastMCP(
     name="faircher"
 )
 
-# OPTIONAL: example tool (safe to keep or remove)
+# Simple health-check tool
 @mcp.tool()
 def ping() -> str:
     """Health check tool"""
     return "pong"
 
-# Expose the ASGI app for uvicorn
-app = mcp.app
+# Entry point: FastMCP manages its own server
+if __name__ == "__main__":
+    mcp.run()
