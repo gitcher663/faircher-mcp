@@ -1,0 +1,25 @@
+{
+  "name": "faircher-mcp",
+  "version": "0.1.0",
+  "description": "Faircher MCP server for advertiser activity",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "faircher"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
