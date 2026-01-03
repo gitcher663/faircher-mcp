@@ -2,8 +2,6 @@ from typing import Optional, Dict, Any
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
-from fastapi import FastAPI
-import uvicorn
 
 
 # ------------------------------------------------------------------------------
@@ -17,7 +15,7 @@ RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 
 
 # ------------------------------------------------------------------------------
-# MCP server
+# MCP Server (FastMCP owns HTTP + SSE)
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
     name="faircher",
@@ -108,25 +106,7 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------------------
-# FastAPI app (Railway-compatible)
-# ------------------------------------------------------------------------------
-app = FastAPI()
-
-# Optional health check
-@app.get("/")
-def health():
-    return {"status": "ok"}
-
-# 🚨 THIS IS THE CRITICAL LINE 🚨
-app.mount("/mcp", mcp.streamable_http_app())
-
-
-# ------------------------------------------------------------------------------
-# Entrypoint
+# Entrypoint — Railway-compatible SSE server
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8080,
-    )
+    mcp.run(transport="sse", port=8080)
