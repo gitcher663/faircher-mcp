@@ -34,7 +34,7 @@ class AdActivityInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 # ------------------------------------------------------------------------------
-# Tool definition (UNCHANGED BUSINESS LOGIC)
+# Tool definition
 # ------------------------------------------------------------------------------
 @mcp.tool(
     name="get_brand_ad_activity",
@@ -100,11 +100,7 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
     }
 
 # ------------------------------------------------------------------------------
-# Entrypoint — REQUIRED FOR CHATGPT MCP (SSE)
+# Entrypoint — SSE MCP server (Railway-compatible)
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    mcp.run(
-        transport="sse",
-        host="0.0.0.0",
-        port=8080,
-    )
+    mcp.run(transport="sse")
