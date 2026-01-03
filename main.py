@@ -7,7 +7,7 @@ import uvicorn
 
 
 # ------------------------------------------------------------------------------
-# Constants (explicit semantics)
+# Constants
 # ------------------------------------------------------------------------------
 ACTIVITY_ACTIVE = "active"
 ACTIVITY_INACTIVE = "inactive"
@@ -17,7 +17,7 @@ RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 
 
 # ------------------------------------------------------------------------------
-# Create the MCP server (HTTP/SSE compatible)
+# MCP server
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
     name="faircher",
@@ -26,7 +26,7 @@ mcp = FastMCP(
 
 
 # ------------------------------------------------------------------------------
-# Input schema for the ad_activity tool
+# Input schema
 # ------------------------------------------------------------------------------
 class AdActivityInput(BaseModel):
     brandName: Optional[str] = Field(
@@ -42,7 +42,7 @@ class AdActivityInput(BaseModel):
 
 
 # ------------------------------------------------------------------------------
-# ad_activity tool (read-only, single-entity)
+# Tool
 # ------------------------------------------------------------------------------
 @mcp.tool(
     name="get_brand_ad_activity",
@@ -59,27 +59,21 @@ class AdActivityInput(BaseModel):
 )
 def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
 
-    # RULE 1: Require brand OR domain
     if not input.brandName and not input.domain:
         return {
             "resultType": RESULT_TYPE_AD_ACTIVITY,
             "activityStatus": ACTIVITY_UNKNOWN,
             "confidenceScore": 0.0,
-            "summaryReason": (
-                "A business name or domain is required to check advertising activity."
-            ),
+            "summaryReason": "A business name or domain is required.",
         }
 
-    # RULE 2: Single-entity only
     for value in (input.brandName, input.domain):
         if value and "," in value:
             return {
                 "resultType": RESULT_TYPE_AD_ACTIVITY,
                 "activityStatus": ACTIVITY_UNKNOWN,
                 "confidenceScore": 0.0,
-                "summaryReason": (
-                    "Only one business or domain may be queried at a time."
-                ),
+                "summaryReason": "Only one business or domain may be queried.",
             }
 
     raw_brand = input.brandName
@@ -90,9 +84,7 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
         if raw_domain else None
     )
 
-    no_ads_detected = normalized_domain in {"example.com", "noads.test"}
-
-    if no_ads_detected:
+    if normalized_domain in {"example.com", "noads.test"}:
         return {
             "resultType": RESULT_TYPE_AD_ACTIVITY,
             "brandName": raw_brand,
@@ -101,10 +93,7 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
             "platformsDetected": [],
             "lastSeenAt": None,
             "confidenceScore": 0.85,
-            "summaryReason": (
-                "No advertising activity detected across monitored platforms "
-                "in the last 30 days."
-            ),
+            "summaryReason": "No advertising activity detected in the last 30 days.",
         }
 
     return {
@@ -120,27 +109,21 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------------------
-# Root FastAPI app + MCP app
-# (Required so OpenAI Create App URL validation does NOT get a 404)
+# FastAPI app
 # ------------------------------------------------------------------------------
-root_app = FastAPI()
+app = FastAPI()
 
-@root_app.get("/")
-def root():
+# Health endpoint (NOT the MCP endpoint)
+@app.get("/health")
+def health():
     return {"status": "ok"}
 
-mcp_app = mcp.streamable_http_app()
-root_app.mount("/", mcp_app)
-
-app = root_app
+# Mount MCP at ROOT — this is critical
+app.mount("/", mcp.streamable_http_app())
 
 
 # ------------------------------------------------------------------------------
-# Entrypoint for Railway / production
+# Entrypoint
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8080,
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8080)
