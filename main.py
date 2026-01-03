@@ -2,6 +2,8 @@ from typing import Optional, Dict, Any
 
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
+from fastapi import FastAPI
+import uvicorn
 
 
 # ------------------------------------------------------------------------------
@@ -15,7 +17,7 @@ RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 
 
 # ------------------------------------------------------------------------------
-# Create the MCP server
+# Create the MCP server (HTTP/SSE compatible)
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
     name="faircher"
@@ -43,7 +45,7 @@ class AdActivityInput(BaseModel):
 # ad_activity tool (read-only, single-entity)
 # ------------------------------------------------------------------------------
 @mcp.tool(
-    name="ad_activity",
+    name="get_brand_ad_activity",
     description=(
         "Check advertising activity for a specific business or domain, "
         "including where ads appear and how recently activity was observed."
@@ -68,11 +70,13 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
             "resultType": RESULT_TYPE_AD_ACTIVITY,
             "activityStatus": ACTIVITY_UNKNOWN,
             "confidenceScore": 0.0,
-            "summaryReason": "A business name or domain is required to check advertising activity."
+            "summaryReason": (
+                "A business name or domain is required to check advertising activity."
+            ),
         }
 
     # --------------------------------------------------------------------------
-    # RULE 2: Single-entity only (basic guard)
+    # RULE 2: Single-entity only
     # --------------------------------------------------------------------------
     for value in (input.brandName, input.domain):
         if value and "," in value:
@@ -80,25 +84,24 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
                 "resultType": RESULT_TYPE_AD_ACTIVITY,
                 "activityStatus": ACTIVITY_UNKNOWN,
                 "confidenceScore": 0.0,
-                "summaryReason": "Only one business or domain may be queried at a time."
+                "summaryReason": (
+                    "Only one business or domain may be queried at a time."
+                ),
             }
 
     # --------------------------------------------------------------------------
-    # Normalize inputs for backend usage (preserve raw values for output)
+    # Normalize inputs
     # --------------------------------------------------------------------------
     raw_brand = input.brandName
     raw_domain = input.domain
 
-    normalized_brand = raw_brand.strip().lower() if raw_brand else None
     normalized_domain = (
         raw_domain.strip().lower().removeprefix("www.")
         if raw_domain else None
     )
 
     # --------------------------------------------------------------------------
-    # MOCK LOGIC (safe v1 stand-in for real APIs)
-    #
-    # Simulate "no ads found" for certain test domains
+    # MOCK LOGIC (safe v1 stand-in)
     # --------------------------------------------------------------------------
     no_ads_detected = normalized_domain in {"example.com", "noads.test"}
 
@@ -121,7 +124,7 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
     # --------------------------------------------------------------------------
     # Structured result (stable shape)
     # --------------------------------------------------------------------------
-    result = {
+    return {
         "resultType": RESULT_TYPE_AD_ACTIVITY,
         "brandName": raw_brand,
         "domain": raw_domain,
@@ -132,11 +135,19 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
         "summaryReason": reason,
     }
 
-    return result
+
+# ------------------------------------------------------------------------------
+# HTTP/SSE App (THIS IS THE KEY CHANGE)
+# ------------------------------------------------------------------------------
+app: FastAPI = mcp.streamable_http_app()
 
 
 # ------------------------------------------------------------------------------
-# Entry point: FastMCP manages its own server
+# Entrypoint for Railway / production
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    mcp.run()
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8080,
+    )
