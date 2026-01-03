@@ -3,23 +3,33 @@ import requests
 from typing import Dict
 from fastmcp import FastMCP
 
+# ------------------------------------------------------------------------------
+# MCP Server
+# ------------------------------------------------------------------------------
 mcp = FastMCP(name="faircher")
 
 SERPAPI_ENDPOINT = "https://serpapi.com/search.json"
 SERPAPI_KEY = os.environ.get("SERPAPI_API_KEY")
 
 
-@mcp.tool()
+# ------------------------------------------------------------------------------
+# Tool definition
+# ------------------------------------------------------------------------------
+@mcp.tool(
+    name="detect_google_ad_activity",
+    description=(
+        "Use this tool when the user asks whether a company or domain is "
+        "currently advertising on Google platforms."
+    ),
+    annotations={
+        "readOnlyHint": True,
+    },
+)
 def detect_google_ad_activity(
     company: str,
     lookback_days: int = 90,
     region: str = "2840",
 ) -> Dict:
-    """
-    Use this tool when the user asks whether a company or domain is currently
-    advertising on Google platforms.
-    """
-
     params = {
         "engine": "google_ads_transparency_center",
         "api_key": SERPAPI_KEY,
@@ -55,5 +65,8 @@ def detect_google_ad_activity(
     }
 
 
+# ------------------------------------------------------------------------------
+# Entrypoint — DO NOT ADD ANYTHING ELSE
+# ------------------------------------------------------------------------------
 if __name__ == "__main__":
     mcp.run(transport="sse")
