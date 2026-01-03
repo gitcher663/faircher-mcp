@@ -1,112 +1,61 @@
-from typing import Optional, Dict, Any
+import os
+import requests
+from typing import Optional, Dict
+from fastmcp import FastMCP
 
-from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, Field, ConfigDict
+mcp = FastMCP(name="faircher")
 
-
-# ------------------------------------------------------------------------------
-# Constants
-# ------------------------------------------------------------------------------
-ACTIVITY_ACTIVE = "active"
-ACTIVITY_INACTIVE = "inactive"
-ACTIVITY_UNKNOWN = "unknown"
-
-RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
+SERPAPI_ENDPOINT = "https://serpapi.com/search.json"
+SERPAPI_KEY = os.environ.get("SERPAPI_API_KEY")
 
 
-# ------------------------------------------------------------------------------
-# MCP Server (FastMCP owns HTTP + SSE)
-# ------------------------------------------------------------------------------
-mcp = FastMCP(
-    name="faircher",
-)
+@mcp.tool()
+def detect_google_ad_activity(
+    company: str,
+    lookback_days: int = 90,
+    region: str = "2840",
+) -> Dict:
+    """
+    Use this tool when the user asks whether a company or domain is currently
+    advertising on Google platforms.
+    """
 
+    params = {
+        "engine": "google_ads_transparency_center",
+        "api_key": SERPAPI_KEY,
+        "region": region,
+        "text": company,
+        "num": 10,
+    }
 
-# ------------------------------------------------------------------------------
-# Input schema
-# ------------------------------------------------------------------------------
-class AdActivityInput(BaseModel):
-    brandName: Optional[str] = Field(
-        None,
-        description="Business or brand name to check advertising activity for.",
-    )
-    domain: Optional[str] = Field(
-        None,
-        description="Primary website domain of the business.",
-    )
+    response = requests.get(SERPAPI_ENDPOINT, params=params, timeout=15)
+    response.raise_for_status()
+    data = response.json()
 
-    model_config = ConfigDict(extra="forbid")
+    creatives = data.get("ad_creatives", [])
+    is_advertising = len(creatives) > 0
 
-
-# ------------------------------------------------------------------------------
-# Tool definition
-# ------------------------------------------------------------------------------
-@mcp.tool(
-    name="get_brand_ad_activity",
-    description=(
-        "Check advertising activity for a specific business or domain, "
-        "including where ads appear and how recently activity was observed."
-    ),
-    annotations={
-        "title": "Advertising Activity Lookup",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "openWorldHint": False,
-    },
-)
-def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
-
-    if not input.brandName and not input.domain:
-        return {
-            "resultType": RESULT_TYPE_AD_ACTIVITY,
-            "activityStatus": ACTIVITY_UNKNOWN,
-            "confidenceScore": 0.0,
-            "summaryReason": "A business name or domain is required.",
-        }
-
-    for value in (input.brandName, input.domain):
-        if value and "," in value:
-            return {
-                "resultType": RESULT_TYPE_AD_ACTIVITY,
-                "activityStatus": ACTIVITY_UNKNOWN,
-                "confidenceScore": 0.0,
-                "summaryReason": "Only one business or domain may be queried.",
-            }
-
-    raw_brand = input.brandName
-    raw_domain = input.domain
-
-    normalized_domain = (
-        raw_domain.strip().lower().removeprefix("www.")
-        if raw_domain else None
-    )
-
-    if normalized_domain in {"example.com", "noads.test"}:
-        return {
-            "resultType": RESULT_TYPE_AD_ACTIVITY,
-            "brandName": raw_brand,
-            "domain": raw_domain,
-            "activityStatus": ACTIVITY_INACTIVE,
-            "platformsDetected": [],
-            "lastSeenAt": None,
-            "confidenceScore": 0.85,
-            "summaryReason": "No advertising activity detected in the last 30 days.",
-        }
+    latest_seen = None
+    if creatives:
+        latest_seen = max(c.get("last_shown", 0) for c in creatives)
 
     return {
-        "resultType": RESULT_TYPE_AD_ACTIVITY,
-        "brandName": raw_brand,
-        "domain": raw_domain,
-        "activityStatus": ACTIVITY_ACTIVE,
-        "platformsDetected": ["google", "meta"],
-        "lastSeenAt": "2026-01-01",
-        "confidenceScore": 0.72,
-        "summaryReason": "Recent ad creatives detected within the last 14 days.",
+        "is_advertising": is_advertising,
+        "confidence": 0.9 if is_advertising else 0.2,
+        "platforms": ["google"] if is_advertising else [],
+        "activity_summary": (
+            f"{company} has active or recent Google ads."
+            if is_advertising
+            else f"No recent Google ad activity detected for {company}."
+        ),
+        "evidence": {
+            "recent_creatives_count": len(creatives),
+            "latest_ad_seen": latest_seen,
+        },
     }
 
 
-# ------------------------------------------------------------------------------
-# Entrypoint — Railway-compatible SSE server
-# ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    mcp.run(transport="sse", port=8080)
+    # ✅ DO NOT pass port
+    # ✅ DO NOT create FastAPI / uvicorn manually
+    mcp.run(transport="sse")
