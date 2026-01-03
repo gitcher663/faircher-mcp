@@ -1,5 +1,4 @@
 from typing import Optional, Dict, Any
-import os
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
@@ -18,11 +17,10 @@ RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 
 
 # ------------------------------------------------------------------------------
-# MCP server — Streamable HTTP (REQUIRED by ChatGPT)
+# MCP server
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
     name="faircher",
-    stateless_http=True,
 )
 
 
@@ -43,7 +41,7 @@ class AdActivityInput(BaseModel):
 
 
 # ------------------------------------------------------------------------------
-# Tool definition (UNCHANGED logic)
+# Tool definition
 # ------------------------------------------------------------------------------
 @mcp.tool(
     name="get_brand_ad_activity",
@@ -110,21 +108,25 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------------------
-# FastAPI wrapper (required for Streamable HTTP)
+# FastAPI app (Railway-compatible)
 # ------------------------------------------------------------------------------
 app = FastAPI()
 
+# Optional health check
 @app.get("/")
 def health():
     return {"status": "ok"}
 
-# MCP must be mounted at ROOT
-app.mount("/", mcp.streamable_http_app())
+# 🚨 THIS IS THE CRITICAL LINE 🚨
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 # ------------------------------------------------------------------------------
-# Entrypoint — Railway compatible
+# Entrypoint
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8080,
+    )
