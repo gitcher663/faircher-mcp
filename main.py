@@ -119,7 +119,7 @@ def root():
     return {"status": "ok"}
 
 # MCP endpoint — THIS is what OpenAI validates
-app.mount("/mcp", mcp.streamable_http_app())
+app.mount("/mcp/", mcp.streamable_http_app())
 
 
 # ------------------------------------------------------------------------------
