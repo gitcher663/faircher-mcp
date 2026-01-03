@@ -1,10 +1,6 @@
 from typing import Optional, Dict, Any
-
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
-from fastapi import FastAPI
-import uvicorn
-
 
 # ------------------------------------------------------------------------------
 # Constants
@@ -15,15 +11,12 @@ ACTIVITY_UNKNOWN = "unknown"
 
 RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 
-
 # ------------------------------------------------------------------------------
-# MCP server
+# MCP server (FastMCP owns the server, SSE transport)
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
     name="faircher",
-    stateless_http=True,
 )
-
 
 # ------------------------------------------------------------------------------
 # Input schema
@@ -40,9 +33,8 @@ class AdActivityInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-
 # ------------------------------------------------------------------------------
-# Tool
+# Tool definition (UNCHANGED BUSINESS LOGIC)
 # ------------------------------------------------------------------------------
 @mcp.tool(
     name="get_brand_ad_activity",
@@ -107,23 +99,12 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
         "summaryReason": "Recent ad creatives detected within the last 14 days.",
     }
 
-
 # ------------------------------------------------------------------------------
-# FastAPI app
-# ------------------------------------------------------------------------------
-app = FastAPI()
-
-# Health endpoint (for browsers / Railway)
-@app.get("/")
-def root():
-    return {"status": "ok"}
-
-# MCP endpoint — THIS is what OpenAI validates
-app.mount("/mcp/", mcp.streamable_http_app())
-
-
-# ------------------------------------------------------------------------------
-# Entrypoint
+# Entrypoint — REQUIRED FOR CHATGPT MCP (SSE)
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    mcp.run(
+        transport="sse",
+        host="0.0.0.0",
+        port=8080,
+    )
