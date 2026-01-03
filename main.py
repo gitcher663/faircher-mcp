@@ -1,6 +1,6 @@
 import os
 import requests
-from typing import Optional, Dict
+from typing import Dict
 from fastmcp import FastMCP
 
 mcp = FastMCP(name="faircher")
@@ -56,6 +56,4 @@ def detect_google_ad_activity(
 
 
 if __name__ == "__main__":
-    # ✅ DO NOT pass port
-    # ✅ DO NOT create FastAPI / uvicorn manually
     mcp.run(transport="sse")
