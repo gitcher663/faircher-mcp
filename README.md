@@ -28,3 +28,25 @@ npm start
 ```
 
 The server communicates over stdio per the MCP specification.
+
+## Codex MCP server
+
+The Codex server surfaces a small set of operational playbooks for marketing and comms teams.
+
+### Run in development
+
+```bash
+npm run codex:dev
+```
+
+### Build and run
+
+```bash
+npm run build
+npm run codex:start
+```
+
+Tools exposed:
+
+- `codex.search_playbooks`: Search curated playbooks by keyword.
+- `codex.get_playbook`: Retrieve a specific playbook by ID.
