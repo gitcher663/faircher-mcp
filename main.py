@@ -1,6 +1,8 @@
 from typing import Optional, Dict, Any
+
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
+
 
 # ------------------------------------------------------------------------------
 # Constants
@@ -11,12 +13,14 @@ ACTIVITY_UNKNOWN = "unknown"
 
 RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 
+
 # ------------------------------------------------------------------------------
-# MCP server (FastMCP owns the server, SSE transport)
+# MCP Server (FastMCP owns HTTP + SSE)
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
     name="faircher",
 )
+
 
 # ------------------------------------------------------------------------------
 # Input schema
@@ -32,6 +36,7 @@ class AdActivityInput(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid")
+
 
 # ------------------------------------------------------------------------------
 # Tool definition
@@ -99,8 +104,9 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
         "summaryReason": "Recent ad creatives detected within the last 14 days.",
     }
 
+
 # ------------------------------------------------------------------------------
-# Entrypoint — SSE MCP server (Railway-compatible)
+# Entrypoint — CORRECT for Railway + ChatGPT
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     mcp.run(transport="sse")
