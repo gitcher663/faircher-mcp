@@ -113,13 +113,13 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
 # ------------------------------------------------------------------------------
 app = FastAPI()
 
-# Health endpoint (NOT the MCP endpoint)
-@app.get("/health")
-def health():
+# Health endpoint (for browsers / Railway)
+@app.get("/")
+def root():
     return {"status": "ok"}
 
-# Mount MCP at ROOT — this is critical
-app.mount("/", mcp.streamable_http_app())
+# MCP endpoint — THIS is what OpenAI validates
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 # ------------------------------------------------------------------------------
