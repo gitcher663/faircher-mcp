@@ -1,17 +1,19 @@
-import express from "express";
+import express, { Request, Response } from "express";
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 8000;
+// Railway injects PORT as a string; coerce to number for Express
+const PORT: number = Number(process.env.PORT) || 8000;
 
 /**
- * Minimal MCP JSON-RPC handler
+ * MCP JSON-RPC endpoint
  */
-app.post("/mcp", (req, res) => {
-  const { id, method, params } = req.body;
+app.post("/mcp", (req: Request, res: Response) => {
+  const { id, method, params } = req.body ?? {};
 
-  if (!method) {
+  // Basic JSON-RPC validation
+  if (!method || typeof method !== "string") {
     return res.status(400).json({
       jsonrpc: "2.0",
       id: id ?? null,
@@ -22,7 +24,9 @@ app.post("/mcp", (req, res) => {
     });
   }
 
-  // MCP initialize
+  /**
+   * MCP: initialize
+   */
   if (method === "initialize") {
     return res.json({
       jsonrpc: "2.0",
@@ -40,7 +44,9 @@ app.post("/mcp", (req, res) => {
     });
   }
 
-  // List tools
+  /**
+   * MCP: tools/list
+   */
   if (method === "tools/list") {
     return res.json({
       jsonrpc: "2.0",
@@ -63,11 +69,14 @@ app.post("/mcp", (req, res) => {
     });
   }
 
-  // Call tool
+  /**
+   * MCP: tools/call
+   */
   if (method === "tools/call") {
-    const { name, arguments: args } = params ?? {};
+    const toolName = params?.name;
+    const args = params?.arguments ?? {};
 
-    if (name === "faircher.get_ad_activity") {
+    if (toolName === "faircher.get_ad_activity") {
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -76,9 +85,10 @@ app.post("/mcp", (req, res) => {
             {
               type: "json",
               data: {
-                advertiserId: args?.advertiserId ?? null,
+                advertiserId: args.advertiserId ?? null,
                 impressions: 12345,
-                clicks: 678
+                clicks: 678,
+                spendUsd: 432.10
               }
             }
           ]
@@ -91,12 +101,14 @@ app.post("/mcp", (req, res) => {
       id,
       error: {
         code: -32601,
-        message: "Tool not found"
+        message: `Tool not found: ${toolName}`
       }
     });
   }
 
-  // Unknown method
+  /**
+   * Unknown method
+   */
   return res.json({
     jsonrpc: "2.0",
     id,
@@ -107,6 +119,16 @@ app.post("/mcp", (req, res) => {
   });
 });
 
+/**
+ * Optional health endpoint (safe for Railway, ignored by MCP)
+ */
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+});
+
+/**
+ * Start server
+ */
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Faircher MCP server listening on port ${PORT}`);
 });
