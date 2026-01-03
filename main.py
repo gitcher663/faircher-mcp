@@ -4,6 +4,8 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
 from fastapi import FastAPI
 import uvicorn
+
+
 # ------------------------------------------------------------------------------
 # Constants (explicit semantics)
 # ------------------------------------------------------------------------------
@@ -18,7 +20,8 @@ RESULT_TYPE_AD_ACTIVITY = "ad_activity_snapshot"
 # Create the MCP server (HTTP/SSE compatible)
 # ------------------------------------------------------------------------------
 mcp = FastMCP(
-    name="faircher"
+    name="faircher",
+    stateless_http=True,
 )
 
 
@@ -28,15 +31,14 @@ mcp = FastMCP(
 class AdActivityInput(BaseModel):
     brandName: Optional[str] = Field(
         None,
-        description="Business or brand name to check advertising activity for."
+        description="Business or brand name to check advertising activity for.",
     )
     domain: Optional[str] = Field(
         None,
-        description="Primary website domain of the business."
+        description="Primary website domain of the business.",
     )
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 # ------------------------------------------------------------------------------
@@ -56,13 +58,8 @@ class AdActivityInput(BaseModel):
     },
 )
 def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
-    """
-    Read-only advertiser activity lookup.
-    """
 
-    # --------------------------------------------------------------------------
-    # RULE 1: Require a brand name OR a domain
-    # --------------------------------------------------------------------------
+    # RULE 1: Require brand OR domain
     if not input.brandName and not input.domain:
         return {
             "resultType": RESULT_TYPE_AD_ACTIVITY,
@@ -73,9 +70,7 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
             ),
         }
 
-    # --------------------------------------------------------------------------
     # RULE 2: Single-entity only
-    # --------------------------------------------------------------------------
     for value in (input.brandName, input.domain):
         if value and "," in value:
             return {
@@ -87,9 +82,6 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
                 ),
             }
 
-    # --------------------------------------------------------------------------
-    # Normalize inputs
-    # --------------------------------------------------------------------------
     raw_brand = input.brandName
     raw_domain = input.domain
 
@@ -98,46 +90,49 @@ def ad_activity(input: AdActivityInput) -> Dict[str, Any]:
         if raw_domain else None
     )
 
-    # --------------------------------------------------------------------------
-    # MOCK LOGIC (safe v1 stand-in)
-    # --------------------------------------------------------------------------
     no_ads_detected = normalized_domain in {"example.com", "noads.test"}
 
     if no_ads_detected:
-        activity_status = ACTIVITY_INACTIVE
-        platforms = []
-        last_seen = None
-        confidence = 0.85
-        reason = (
-            "No advertising activity detected across monitored platforms "
-            "in the last 30 days."
-        )
-    else:
-        activity_status = ACTIVITY_ACTIVE
-        platforms = ["google", "meta"]
-        last_seen = "2026-01-01"
-        confidence = 0.72
-        reason = "Recent ad creatives detected within the last 14 days."
+        return {
+            "resultType": RESULT_TYPE_AD_ACTIVITY,
+            "brandName": raw_brand,
+            "domain": raw_domain,
+            "activityStatus": ACTIVITY_INACTIVE,
+            "platformsDetected": [],
+            "lastSeenAt": None,
+            "confidenceScore": 0.85,
+            "summaryReason": (
+                "No advertising activity detected across monitored platforms "
+                "in the last 30 days."
+            ),
+        }
 
-    # --------------------------------------------------------------------------
-    # Structured result (stable shape)
-    # --------------------------------------------------------------------------
     return {
         "resultType": RESULT_TYPE_AD_ACTIVITY,
         "brandName": raw_brand,
         "domain": raw_domain,
-        "activityStatus": activity_status,
-        "platformsDetected": platforms,
-        "lastSeenAt": last_seen,
-        "confidenceScore": confidence,
-        "summaryReason": reason,
+        "activityStatus": ACTIVITY_ACTIVE,
+        "platformsDetected": ["google", "meta"],
+        "lastSeenAt": "2026-01-01",
+        "confidenceScore": 0.72,
+        "summaryReason": "Recent ad creatives detected within the last 14 days.",
     }
 
 
 # ------------------------------------------------------------------------------
-# HTTP/SSE App (THIS IS THE KEY CHANGE)
+# Root FastAPI app + MCP app
+# (Required so OpenAI Create App URL validation does NOT get a 404)
 # ------------------------------------------------------------------------------
-app: FastAPI = mcp.streamable_http_app()
+root_app = FastAPI()
+
+@root_app.get("/")
+def root():
+    return {"status": "ok"}
+
+mcp_app = mcp.streamable_http_app()
+root_app.mount("/", mcp_app)
+
+app = root_app
 
 
 # ------------------------------------------------------------------------------
