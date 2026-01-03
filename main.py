@@ -1,11 +1,9 @@
 from typing import Optional, Dict, Any
 
-from fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, Field, ConfigDict
 from fastapi import FastAPI
 import uvicorn
-
-
 # ------------------------------------------------------------------------------
 # Constants (explicit semantics)
 # ------------------------------------------------------------------------------
