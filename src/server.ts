@@ -54,6 +54,23 @@ app.post("/mcp", (req: Request, res: Response) => {
       result: {
         tools: [
           {
+            name: "faircher.entity_lookup",
+            description:
+              "Resolve a business name or domain into a canonical Faircher entity and associated domains.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                input: { type: "string" },
+                source: {
+                  type: "string",
+                  enum: ["user", "crm", "domain", "url", "unknown"],
+                  default: "unknown"
+                }
+              },
+              required: ["input"]
+            }
+          },
+          {
             name: "faircher.get_ad_activity",
             description: "Return advertiser activity metrics",
             inputSchema: {
@@ -76,6 +93,38 @@ app.post("/mcp", (req: Request, res: Response) => {
     const toolName = params?.name;
     const args = params?.arguments ?? {};
 
+    /**
+     * Tool: faircher.entity_lookup
+     */
+    if (toolName === "faircher.entity_lookup") {
+      const input = args.input;
+
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "json",
+              data: {
+                status: "matched",
+                entityId: "fc_ent_demo_001",
+                canonicalName: input,
+                entityType: "advertiser",
+                domains: [],
+                primaryDomain: null,
+                matchConfidence: "low",
+                matchedFrom: "name"
+              }
+            }
+          ]
+        }
+      });
+    }
+
+    /**
+     * Tool: faircher.get_ad_activity
+     */
     if (toolName === "faircher.get_ad_activity") {
       return res.json({
         jsonrpc: "2.0",
@@ -88,7 +137,7 @@ app.post("/mcp", (req: Request, res: Response) => {
                 advertiserId: args.advertiserId ?? null,
                 impressions: 12345,
                 clicks: 678,
-                spendUsd: 432.10
+                spendUsd: 432.1
               }
             }
           ]
