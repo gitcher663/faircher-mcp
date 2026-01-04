@@ -11,15 +11,11 @@ const PORT: number = Number(process.env.PORT) || 8000;
 app.post("/mcp", (req: Request, res: Response) => {
   const { id, method, params } = req.body ?? {};
 
-  // Basic JSON-RPC validation
   if (!method || typeof method !== "string") {
     return res.status(400).json({
       jsonrpc: "2.0",
       id: id ?? null,
-      error: {
-        code: -32600,
-        message: "Invalid Request"
-      }
+      error: { code: -32600, message: "Invalid Request" }
     });
   }
 
@@ -34,7 +30,7 @@ app.post("/mcp", (req: Request, res: Response) => {
         protocolVersion: "2024-11-05",
         serverInfo: {
           name: "faircher-mcp",
-          version: "1.0.0"
+          version: "1.1.0"
         },
         capabilities: {
           tools: {}
@@ -53,8 +49,7 @@ app.post("/mcp", (req: Request, res: Response) => {
       result: {
         tools: [
           /**
-           * ENTITY LOOKUP
-           * Required normalization step for all Faircher tools
+           * 1. ENTITY LOOKUP (REQUIRED FIRST STEP)
            */
           {
             name: "faircher.entity_lookup",
@@ -67,7 +62,7 @@ app.post("/mcp", (req: Request, res: Response) => {
                 input: {
                   type: "string",
                   description:
-                    "Business name, brand name, domain, URL, or CRM-provided account label to resolve."
+                    "Business name, brand name, domain, URL, or CRM-provided account label."
                 },
                 source: {
                   type: "string",
@@ -82,8 +77,28 @@ app.post("/mcp", (req: Request, res: Response) => {
           },
 
           /**
-           * ADVERTISING ACTIVITY (PRIMARY DATA TOOL)
-           * Modeled after Morningstar Data Tool
+           * 2. ADVERTISING STATUS (CLASSIFICATION / GATING)
+           */
+          {
+            name: "faircher.resolve_advertising_status",
+            description:
+              "Determine whether a resolved Faircher entity shows evidence of recent or current advertising activity. This tool classifies advertising presence without returning detailed metrics.",
+            inputSchema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                entityId: {
+                  type: "string",
+                  description:
+                    "Canonical Faircher entity ID obtained from faircher.entity_lookup."
+                }
+              },
+              required: ["entityId"]
+            }
+          },
+
+          /**
+           * 3. ADVERTISING ACTIVITY (PRIMARY DATA TOOL)
            */
           {
             name: "faircher.get_ad_activity",
@@ -137,7 +152,7 @@ app.post("/mcp", (req: Request, res: Response) => {
     const args = params?.arguments ?? {};
 
     /**
-     * Tool: faircher.entity_lookup
+     * Tool 1: entity_lookup
      */
     if (toolName === "faircher.entity_lookup") {
       const result = {
@@ -156,19 +171,31 @@ app.post("/mcp", (req: Request, res: Response) => {
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: {
-          content: [
-            {
-              type: "json",
-              data: result
-            }
-          ]
-        }
+        result: { content: [{ type: "json", data: result }] }
       });
     }
 
     /**
-     * Tool: faircher.get_ad_activity
+     * Tool 2: resolve_advertising_status
+     */
+    if (toolName === "faircher.resolve_advertising_status") {
+      const result = {
+        advertisingStatus: "advertising_detected", // advertising_detected | no_recent_signals | unknown
+        recency: "recent",                         // recent | not_recent | unknown
+        confidence: "medium",
+        explanation:
+          "Advertising signals detected within the evaluated period across monitored digital channels."
+      };
+
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: { content: [{ type: "json", data: result }] }
+      });
+    }
+
+    /**
+     * Tool 3: get_ad_activity
      */
     if (toolName === "faircher.get_ad_activity") {
       const result = {
@@ -199,37 +226,21 @@ app.post("/mcp", (req: Request, res: Response) => {
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: {
-          content: [
-            {
-              type: "json",
-              data: result
-            }
-          ]
-        }
+        result: { content: [{ type: "json", data: result }] }
       });
     }
 
     return res.json({
       jsonrpc: "2.0",
       id,
-      error: {
-        code: -32601,
-        message: `Tool not found: ${toolName}`
-      }
+      error: { code: -32601, message: `Tool not found: ${toolName}` }
     });
   }
 
-  /**
-   * Unknown method
-   */
   return res.json({
     jsonrpc: "2.0",
     id,
-    error: {
-      code: -32601,
-      message: `Method not found: ${method}`
-    }
+    error: { code: -32601, message: `Method not found: ${method}` }
   });
 });
 
