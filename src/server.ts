@@ -35,7 +35,7 @@ app.post("/mcp", (req: Request, res: Response) => {
         protocolVersion: "2024-11-05",
         serverInfo: {
           name: "faircher-mcp",
-          version: "0.1.0"
+          version: "0.2.0"
         },
         capabilities: {
           tools: {}
@@ -56,11 +56,14 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "faircher.entity_lookup",
             description:
-              "Resolve a business name or domain into a canonical Faircher entity and associated domains.",
+              "Resolve a business name, brand, or domain into a canonical Faircher entity. Returns the Faircher entity ID and associated metadata required for downstream tools.",
             inputSchema: {
               type: "object",
               properties: {
-                input: { type: "string" },
+                input: {
+                  type: "string",
+                  description: "Business name, brand name, or domain to resolve"
+                },
                 source: {
                   type: "string",
                   enum: ["user", "crm", "domain", "url", "unknown"],
@@ -71,14 +74,18 @@ app.post("/mcp", (req: Request, res: Response) => {
             }
           },
           {
-            name: "faircher.get_ad_activity",
-            description: "Return advertiser activity metrics",
+            name: "faircher.resolve_advertising_status",
+            description:
+              "Determine whether a resolved Faircher entity is currently or recently advertising based on detectable signals. Establishes advertising presence and recency without returning spend, creatives, or performance metrics.",
             inputSchema: {
               type: "object",
               properties: {
-                advertiserId: { type: "string" }
+                entityId: {
+                  type: "string",
+                  description: "Canonical Faircher entity ID returned from entity_lookup"
+                }
               },
-              required: ["advertiserId"]
+              required: ["entityId"]
             }
           }
         ]
@@ -93,11 +100,26 @@ app.post("/mcp", (req: Request, res: Response) => {
     const toolName = params?.name;
     const args = params?.arguments ?? {};
 
+    console.log("MCP tool called:", toolName, args);
+
     /**
      * Tool: faircher.entity_lookup
      */
     if (toolName === "faircher.entity_lookup") {
       const input = args.input;
+
+      const entityResult = {
+        status: "matched",
+        entityId: "fc_ent_demo_001",
+        canonicalName: input,
+        entityType: "advertiser",
+        domains: [],
+        primaryDomain: null,
+        matchConfidence: "low",
+        matchedFrom: "name"
+      };
+
+      console.log("Entity resolved:", entityResult);
 
       return res.json({
         jsonrpc: "2.0",
@@ -106,16 +128,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           content: [
             {
               type: "json",
-              data: {
-                status: "matched",
-                entityId: "fc_ent_demo_001",
-                canonicalName: input,
-                entityType: "advertiser",
-                domains: [],
-                primaryDomain: null,
-                matchConfidence: "low",
-                matchedFrom: "name"
-              }
+              data: entityResult
             }
           ]
         }
@@ -123,9 +136,23 @@ app.post("/mcp", (req: Request, res: Response) => {
     }
 
     /**
-     * Tool: faircher.get_ad_activity
+     * Tool: faircher.resolve_advertising_status
      */
-    if (toolName === "faircher.get_ad_activity") {
+    if (toolName === "faircher.resolve_advertising_status") {
+      const entityId = args.entityId ?? null;
+
+      // Stubbed logic — replace with real detection later
+      const statusResult = {
+        status: "advertising_detected", // advertising_detected | no_recent_signals | unknown
+        recency: "recent",              // recent | not_recent | unknown
+        channels: ["search", "video"],
+        confidence: "medium",
+        explanation:
+          "Advertising signals detected within the last few months across monitored digital channels."
+      };
+
+      console.log("Advertising status resolved:", entityId, statusResult);
+
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -133,12 +160,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           content: [
             {
               type: "json",
-              data: {
-                advertiserId: args.advertiserId ?? null,
-                impressions: 12345,
-                clicks: 678,
-                spendUsd: 432.1
-              }
+              data: statusResult
             }
           ]
         }
