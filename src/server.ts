@@ -11,11 +11,15 @@ const PORT: number = Number(process.env.PORT) || 8000;
 app.post("/mcp", (req: Request, res: Response) => {
   const { id, method, params } = req.body ?? {};
 
+  // Basic JSON-RPC validation
   if (!method || typeof method !== "string") {
     return res.status(400).json({
       jsonrpc: "2.0",
       id: id ?? null,
-      error: { code: -32600, message: "Invalid Request" }
+      error: {
+        code: -32600,
+        message: "Invalid Request"
+      }
     });
   }
 
@@ -49,29 +53,28 @@ app.post("/mcp", (req: Request, res: Response) => {
       result: {
         tools: [
           /**
-           * ENTITY LOOKUP (Normalization / Required First Step)
+           * ENTITY LOOKUP
+           * Required normalization step for all Faircher tools
            */
           {
             name: "faircher.entity_lookup",
-            title: "Faircher Entity Lookup",
             description:
-              "Resolve a business name, brand, domain, URL, or CRM account label into a canonical Faircher entity. This tool is the required first step for all Faircher analysis.",
-            description_model:
-              "Normalize any user-provided business reference into a canonical Faircher entity. Always call this tool before invoking any other Faircher tool. Do not infer or invent entity IDs.",
-            is_read_only: true,
-            params: {
+              "Resolve a business name, brand, domain, URL, or CRM account label into a canonical Faircher entity. This tool must be used before invoking any other Faircher tool.",
+            inputSchema: {
               type: "object",
               additionalProperties: false,
               properties: {
                 input: {
                   type: "string",
                   description:
-                    "Business name, brand name, domain, URL, or CRM-provided account label."
+                    "Business name, brand name, domain, URL, or CRM-provided account label to resolve."
                 },
                 source: {
                   type: "string",
                   enum: ["user", "crm", "domain", "url", "unknown"],
-                  default: "unknown"
+                  default: "unknown",
+                  description:
+                    "Optional context indicating where the input value originated."
                 }
               },
               required: ["input"]
@@ -79,17 +82,14 @@ app.post("/mcp", (req: Request, res: Response) => {
           },
 
           /**
-           * ADVERTISING ACTIVITY (Primary Data Tool)
+           * ADVERTISING ACTIVITY (PRIMARY DATA TOOL)
+           * Modeled after Morningstar Data Tool
            */
           {
             name: "faircher.get_ad_activity",
-            title: "Faircher Advertising Activity",
             description:
-              "Retrieve structured advertising activity metrics for a resolved Faircher entity, including presence, estimated intensity, and high-level quantitative indicators across supported media channels.",
-            description_model:
-              "Retrieve structured, quantitative advertising activity data for a resolved Faircher entity using its canonical entity ID. Use this tool when precise advertising-level data is required. Coverage and historical depth may vary by channel and metric.",
-            is_read_only: true,
-            params: {
+              "Retrieve structured advertising activity metrics for a resolved Faircher entity, including presence indicators and quantitative estimates across supported media channels. Coverage and historical depth may vary by metric.",
+            inputSchema: {
               type: "object",
               additionalProperties: false,
               properties: {
@@ -115,10 +115,10 @@ app.post("/mcp", (req: Request, res: Response) => {
                 },
                 period: {
                   type: "string",
-                  description:
-                    "Time period for which advertising activity should be evaluated.",
                   enum: ["recent", "last_30_days", "last_90_days"],
-                  default: "recent"
+                  default: "recent",
+                  description:
+                    "Time period over which advertising activity should be evaluated."
                 }
               },
               required: ["entityId"]
@@ -191,7 +191,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           geo_coverage: ["US"]
         },
         coverageNotes:
-          "Metric availability and precision vary by channel and entity.",
+          "Metric availability and precision vary by channel, geography, and entity.",
         evidenceAvailable: true,
         confidence: "medium"
       };
@@ -213,14 +213,23 @@ app.post("/mcp", (req: Request, res: Response) => {
     return res.json({
       jsonrpc: "2.0",
       id,
-      error: { code: -32601, message: `Tool not found: ${toolName}` }
+      error: {
+        code: -32601,
+        message: `Tool not found: ${toolName}`
+      }
     });
   }
 
+  /**
+   * Unknown method
+   */
   return res.json({
     jsonrpc: "2.0",
     id,
-    error: { code: -32601, message: `Method not found: ${method}` }
+    error: {
+      code: -32601,
+      message: `Method not found: ${method}`
+    }
   });
 });
 
