@@ -48,9 +48,6 @@ app.post("/mcp", (req: Request, res: Response) => {
       id,
       result: {
         tools: [
-          /**
-           * 1. ENTITY LOOKUP (REQUIRED FIRST STEP)
-           */
           {
             name: "faircher.entity_lookup",
             description:
@@ -67,56 +64,36 @@ app.post("/mcp", (req: Request, res: Response) => {
                 source: {
                   type: "string",
                   enum: ["user", "crm", "domain", "url", "unknown"],
-                  default: "unknown",
-                  description:
-                    "Optional context indicating where the input value originated."
+                  default: "unknown"
                 }
               },
               required: ["input"]
             }
           },
-
-          /**
-           * 2. ADVERTISING STATUS (CLASSIFICATION / GATING)
-           */
           {
             name: "faircher.resolve_advertising_status",
             description:
-              "Determine whether a resolved Faircher entity shows evidence of recent or current advertising activity. This tool classifies advertising presence without returning detailed metrics.",
+              "Determine whether a resolved Faircher entity shows evidence of recent or current advertising activity.",
             inputSchema: {
               type: "object",
               additionalProperties: false,
               properties: {
-                entityId: {
-                  type: "string",
-                  description:
-                    "Canonical Faircher entity ID obtained from faircher.entity_lookup."
-                }
+                entityId: { type: "string" }
               },
               required: ["entityId"]
             }
           },
-
-          /**
-           * 3. ADVERTISING ACTIVITY (PRIMARY DATA TOOL)
-           */
           {
             name: "faircher.get_ad_activity",
             description:
-              "Retrieve structured advertising activity metrics for a resolved Faircher entity, including presence indicators and quantitative estimates across supported media channels. Coverage and historical depth may vary by metric.",
+              "Retrieve structured advertising activity metrics for a resolved Faircher entity.",
             inputSchema: {
               type: "object",
               additionalProperties: false,
               properties: {
-                entityId: {
-                  type: "string",
-                  description:
-                    "Canonical Faircher entity ID obtained from faircher.entity_lookup."
-                },
+                entityId: { type: "string" },
                 metrics: {
                   type: "array",
-                  description:
-                    "Optional list of advertising metric keys to retrieve. If omitted, a default core metric set is returned.",
                   items: {
                     type: "string",
                     enum: [
@@ -131,9 +108,7 @@ app.post("/mcp", (req: Request, res: Response) => {
                 period: {
                   type: "string",
                   enum: ["recent", "last_30_days", "last_90_days"],
-                  default: "recent",
-                  description:
-                    "Time period over which advertising activity should be evaluated."
+                  default: "recent"
                 }
               },
               required: ["entityId"]
@@ -156,13 +131,13 @@ app.post("/mcp", (req: Request, res: Response) => {
      */
     if (toolName === "faircher.entity_lookup") {
       const result = {
-        resolutionStatus: "resolved", // resolved | ambiguous | not_found
+        resolutionStatus: "resolved",
         entityId: "fc_ent_demo_001",
         canonicalName: args.input,
         entityType: "advertiser",
         domains: ["example.com"],
         primaryDomain: "example.com",
-        confidence: "medium", // high | medium | low
+        confidence: "medium",
         matchedFrom: "name",
         candidates: [],
         message: null
@@ -171,7 +146,14 @@ app.post("/mcp", (req: Request, res: Response) => {
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: { content: [{ type: "json", data: result }] }
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2)
+            }
+          ]
+        }
       });
     }
 
@@ -180,8 +162,8 @@ app.post("/mcp", (req: Request, res: Response) => {
      */
     if (toolName === "faircher.resolve_advertising_status") {
       const result = {
-        advertisingStatus: "advertising_detected", // advertising_detected | no_recent_signals | unknown
-        recency: "recent",                         // recent | not_recent | unknown
+        advertisingStatus: "advertising_detected",
+        recency: "recent",
         confidence: "medium",
         explanation:
           "Advertising signals detected within the evaluated period across monitored digital channels."
@@ -190,7 +172,14 @@ app.post("/mcp", (req: Request, res: Response) => {
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: { content: [{ type: "json", data: result }] }
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2)
+            }
+          ]
+        }
       });
     }
 
@@ -226,7 +215,14 @@ app.post("/mcp", (req: Request, res: Response) => {
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: { content: [{ type: "json", data: result }] }
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2)
+            }
+          ]
+        }
       });
     }
 
