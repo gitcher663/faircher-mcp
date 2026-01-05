@@ -2,6 +2,12 @@
 
 FairCher MCP server for read-only advertiser discovery and research in ChatGPT.
 
+The server enforces a confirmation-gated workflow backed by Supabase:
+
+- `faircher.entity_lookup` resolves business input through a Supabase Edge Function (with a domain fast-path) and persists the unconfirmed entity record.
+- The returned entity summary must be presented to the user for explicit confirmation via `faircher.confirm_entity`.
+- Advertising classification (`faircher.resolve_advertising_status`) and activity retrieval (`faircher.get_ad_activity`) are blocked until the entity is confirmed in Supabase.
+
 ## Node.js MCP server over HTTP
 
 This repository hosts a production-ready Node.js MCP server that communicates over HTTP rather than stdio. The server is compatible with ChatGPT MCP URL registration and exposes its JSON-RPC endpoint at `POST /mcp`.

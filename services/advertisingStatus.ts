@@ -12,6 +12,14 @@ const supabase = new SupabaseAdapter();
 export async function resolveAdvertisingStatus(
   input: AdvertisingStatusInput
 ): Promise<ReturnType<SupabaseAdapter["getAdvertisingStatus"]>> {
+  const entity = await supabase.getEntity(input.entityId);
+
+  if (!entity.confirmed) {
+    throw new Error(
+      "Advertising status is blocked until the entity has been explicitly confirmed by the user."
+    );
+  }
+
   return supabase.getAdvertisingStatus(input.entityId);
 }
 
