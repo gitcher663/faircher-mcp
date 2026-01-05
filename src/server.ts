@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import rawTools from "../tools";
+import rawTools from "./tools"; // FIXED PATH
 
 const app = express();
 app.use(express.json());
@@ -39,6 +39,9 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
   }
 
+  /**
+   * MCP: initialize
+   */
   if (method === "initialize") {
     return res.json({
       jsonrpc: "2.0",
@@ -57,6 +60,9 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
   }
 
+  /**
+   * MCP: tools/list
+   */
   if (method === "tools/list") {
     const listedTools = tools.map((tool: ToolDefinition) => ({
       name: tool.name,
@@ -71,11 +77,16 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
   }
 
+  /**
+   * MCP: tools/call
+   */
   if (method === "tools/call") {
     const toolName = params?.name as string | undefined;
     const args = (params?.arguments ?? {}) as Record<string, unknown>;
 
-    const tool = tools.find((item: ToolDefinition) => item.name === toolName);
+    const tool = tools.find(
+      (item: ToolDefinition) => item.name === toolName
+    );
 
     if (!tool) {
       return res.status(404).json({
@@ -112,10 +123,16 @@ app.post("/mcp", async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * Health check
+ */
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
+/**
+ * Start server
+ */
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Faircher MCP server listening on port ${PORT}`);
 });
