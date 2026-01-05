@@ -8,6 +8,7 @@ export const getAdActivityTool: McpTool = {
   description:
     "Retrieve structured advertising activity metrics for a resolved Faircher entity, including presence indicators and quantitative estimates across supported media channels.",
   inputSchema: schema as Record<string, unknown>,
+
   async run(args) {
     const entityId = String(args.entityId ?? "").trim();
     const metrics = Array.isArray(args.metrics)
@@ -19,8 +20,13 @@ export const getAdActivityTool: McpTool = {
       throw new Error("Missing required input parameter: entityId");
     }
 
-    return getAdActivity({ entityId, metrics, period });
-  }
-};
+    const data = await getAdActivity({ entityId, metrics, period });
 
-export default getAdActivityTool;
+    // MCP-compliant response
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2)
+        }
+      ]
