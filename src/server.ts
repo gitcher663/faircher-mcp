@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
-import rawTools from "./tools"; // FIXED PATH
+// Tools live at the repository root (../tools) rather than under src.
+import rawTools from "../tools";
 
 const app = express();
 app.use(express.json());
