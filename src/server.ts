@@ -1,10 +1,25 @@
 import express, { Request, Response } from "express";
-import tools from "../tools";
+import rawTools from "../tools";
 
 const app = express();
 app.use(express.json());
 
 const PORT: number = Number(process.env.PORT) || 8000;
+
+/**
+ * Explicit tool definition to satisfy strict TypeScript
+ */
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: unknown;
+  run: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+/**
+ * Cast imported tools to a known, safe shape
+ */
+const tools = rawTools as ToolDefinition[];
 
 const SYSTEM_PROMPT = `Strict workflow: Resolve → Confirm → Ask → Analyze.
 - Always call faircher.entity_lookup first to resolve user input via Supabase and persist an unconfirmed entity.
@@ -43,7 +58,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
   }
 
   if (method === "tools/list") {
-    const listedTools = tools.map((tool) => ({
+    const listedTools = tools.map((tool: ToolDefinition) => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema
@@ -60,7 +75,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
     const toolName = params?.name as string | undefined;
     const args = (params?.arguments ?? {}) as Record<string, unknown>;
 
-    const tool = tools.find((item) => item.name === toolName);
+    const tool = tools.find((item: ToolDefinition) => item.name === toolName);
 
     if (!tool) {
       return res.status(404).json({
@@ -79,7 +94,9 @@ app.post("/mcp", async (req: Request, res: Response) => {
         result
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown tool error";
+      const message =
+        error instanceof Error ? error.message : "Unknown tool error";
+
       return res.status(400).json({
         jsonrpc: "2.0",
         id,
