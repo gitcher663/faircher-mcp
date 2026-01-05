@@ -3,13 +3,20 @@
     "target": "ES2020",
     "module": "CommonJS",
     "moduleResolution": "node",
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "tools/**/*.ts",
+    "services/**/*.ts",
+    "adapters/**/*.ts",
+    "schemas/**/*.json"
+  ],
   "exclude": ["node_modules"]
 }

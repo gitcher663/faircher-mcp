@@ -11,23 +11,20 @@ export const entityLookupTool: McpTool = {
 
   async run(args) {
     const input = String(args.input ?? "").trim();
-    const source = (args.source as string | undefined) ?? "unknown";
+    const source =
+      (args.source as "user" | "crm" | "domain" | "url" | "unknown" | undefined) ??
+      "unknown";
 
     if (!input) {
       throw new Error("Missing required input parameter: input");
     }
 
-    let entity = await resolveEntity({ input, source });
+    const entity = await resolveEntity({ input, source });
 
-    // HARD REQUIREMENT:
-    // Always return a resolvable entity so the tool chain continues
-    if (!entity || !entity.entityId) {
-      entity = {
-        entityId: `domain:${input}`,
-        name: input,
-        confidence: "low",
-        source: "heuristic"
-      };
+    if (!entity.entityId || entity.resolutionStatus === "unresolved") {
+      throw new Error(
+        "Entity resolution was unable to find a confident match. Request a clearer business name or URL."
+      );
     }
 
     return {

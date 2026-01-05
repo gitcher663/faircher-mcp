@@ -1,4 +1,4 @@
-import { SerpApiAdapter } from "../adapters/serpapi";
+import { SupabaseAdapter, EntityResolutionResponse } from "../adapters/supabase";
 
 export type EntityResolutionInput = {
   input: string;
@@ -6,51 +6,116 @@ export type EntityResolutionInput = {
 };
 
 export type EntityResolution = {
-  resolutionStatus: "resolved" | "ambiguous" | "not_found";
+  resolutionStatus: "resolved" | "ambiguous" | "unresolved";
   entityId: string | null;
   canonicalName: string | null;
-  entityType: "advertiser" | "unknown";
+  entityType: string | null;
   domains: string[];
   primaryDomain: string | null;
-  confidence: "high" | "medium" | "low";
-  matchedFrom: "name" | "domain" | "url" | "crm" | "unknown";
-  candidates: Array<{ id: string; name: string; domain?: string; confidence: "high" | "medium" | "low" }>;
+  location: string | null;
+  description: string | null;
+  sourceLinks: string[];
+  kgId: string | null;
+  confidence: "high" | "medium" | "low" | "unknown";
+  matchedFrom: "name" | "domain" | "url" | "crm" | "user" | "unknown";
+  candidates: EntityResolutionResponse["candidates"];
+  confirmed: boolean;
   message: string | null;
+  requiresConfirmation: boolean;
 };
 
-const serpApi = new SerpApiAdapter();
+const supabase = new SupabaseAdapter();
 
-export async function resolveEntity(input: EntityResolutionInput): Promise<EntityResolution> {
-  const serpResult = await serpApi.searchEntity(input.input);
+function extractDomain(input: string): { domain: string; matchedFrom: "domain" | "url" } | null {
+  const hasProtocol = input.startsWith("http://") || input.startsWith("https://");
 
-  if (!serpResult) {
+  try {
+    const candidateUrl = hasProtocol ? new URL(input) : new URL(`http://${input}`);
+    const hostname = candidateUrl.hostname.toLowerCase();
+    const cleanedHost = hostname.replace(/[^a-z0-9.-]/gi, "");
+
+    if (!cleanedHost || !cleanedHost.includes(".")) {
+      return null;
+    }
+
+    return { domain: cleanedHost, matchedFrom: hasProtocol ? "url" : "domain" };
+  } catch {
+    return null;
+  }
+}
+
+function mapResolution(
+  resolution: EntityResolutionResponse,
+  matchedFrom: EntityResolution["matchedFrom"]
+): EntityResolution {
+  const entity = resolution.entity;
+
+  if (!entity) {
     return {
-      resolutionStatus: "not_found",
+      resolutionStatus: resolution.resolutionStatus ?? "unresolved",
       entityId: null,
       canonicalName: null,
-      entityType: "unknown",
+      entityType: null,
       domains: [],
       primaryDomain: null,
-      confidence: "low",
-      matchedFrom: "unknown",
-      candidates: [],
-      message: "No matching entity found"
+      location: null,
+      description: null,
+      sourceLinks: [],
+      kgId: null,
+      confidence: "unknown",
+      matchedFrom,
+      candidates: resolution.candidates ?? [],
+      confirmed: false,
+      message: resolution.message ?? "Entity could not be resolved from provided input.",
+      requiresConfirmation: true
     };
   }
 
   return {
-    resolutionStatus: serpResult.candidates.length > 1 ? "ambiguous" : "resolved",
-    entityId: serpResult.primaryCandidate.id,
-    canonicalName: serpResult.primaryCandidate.name,
-    entityType: "advertiser",
-    domains: serpResult.candidates.map((candidate) => candidate.domain).filter(Boolean) as string[],
-    primaryDomain: serpResult.primaryCandidate.domain ?? null,
-    confidence: serpResult.primaryCandidate.confidence,
-    matchedFrom: serpResult.matchedFrom,
-    candidates: serpResult.candidates,
-    message:
-      serpResult.candidates.length > 1
-        ? "Multiple potential matches found. Choose the closest match or provide additional context."
-        : null
+    resolutionStatus: resolution.resolutionStatus ?? "resolved",
+    entityId: entity.entity_id,
+    canonicalName: entity.canonical_name,
+    entityType: entity.entity_type,
+    domains: entity.primary_domain ? [entity.primary_domain] : [],
+    primaryDomain: entity.primary_domain,
+    location: entity.location,
+    description: entity.description,
+    sourceLinks: entity.source_links ?? [],
+    kgId: entity.kg_id,
+    confidence: "medium",
+    matchedFrom,
+    candidates: resolution.candidates ?? [],
+    confirmed: entity.confirmed,
+    message: resolution.message ?? null,
+    requiresConfirmation: true
   };
+}
+
+export async function resolveEntity(input: EntityResolutionInput): Promise<EntityResolution> {
+  const trimmedInput = input.input.trim();
+  const source = input.source ?? "unknown";
+
+  if (!trimmedInput) {
+    throw new Error("Input is required for entity resolution");
+  }
+
+  const domainContext = extractDomain(trimmedInput);
+
+  if (domainContext) {
+    const resolution = await supabase.persistDomainEntity(
+      trimmedInput,
+      domainContext.domain,
+      source
+    );
+
+    return mapResolution(resolution, domainContext.matchedFrom);
+  }
+
+  const resolution = await supabase.resolveEntity(trimmedInput, source);
+
+  if (resolution.resolutionStatus === "unresolved") {
+    return mapResolution(resolution, "unknown");
+  }
+
+  return mapResolution(resolution, source === "unknown" ? "name" : source);
 }
