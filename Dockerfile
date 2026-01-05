@@ -6,7 +6,9 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 RUN npm install
 
+# Include source code and tools required for compilation
 COPY src ./src
+COPY tools ./tools
 RUN npm run build
 
 
