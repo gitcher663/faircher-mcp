@@ -3,13 +3,13 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "entityId": {
+    "domain": {
       "type": "string",
-      "description": "Canonical Faircher entity ID obtained from faircher.entity_lookup."
+      "description": "Company domain to retrieve advertising activity for (e.g. nike.com)."
     },
     "metrics": {
       "type": "array",
-      "description": "Optional list of advertising metric keys to retrieve. If omitted, a default core metric set is returned.",
+      "description": "Optional list of advertising metric keys to include in the response. If omitted, a default core metric set is returned.",
       "items": {
         "type": "string",
         "enum": [
@@ -28,5 +28,5 @@
       "description": "Time period over which advertising activity should be evaluated."
     }
   },
-  "required": ["entityId"]
+  "required": ["domain"]
 }
