@@ -1,7 +1,5 @@
-import { entityLookupTool } from "./entity_lookup";
-import { confirmEntityTool } from "./confirm_entity";
-import { resolveAdvertisingStatusTool } from "./resolve_advertising_status";
 import { getAdActivityTool } from "./get_ad_activity";
+import { resolveAdvertisingStatusTool } from "./resolve_advertising_status";
 
 export type McpTool = {
   name: string;
@@ -11,10 +9,8 @@ export type McpTool = {
 };
 
 export const tools: McpTool[] = [
-  entityLookupTool,
-  confirmEntityTool,
-  resolveAdvertisingStatusTool,
-  getAdActivityTool
+  getAdActivityTool,
+  resolveAdvertisingStatusTool
 ];
 
 export default tools;
