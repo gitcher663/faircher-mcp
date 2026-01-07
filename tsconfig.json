@@ -12,11 +12,11 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src",
-    "tools",
-    "services",
-    "adapters",
-    "schemas"
+    "src/**/*",
+    "tools/**/*",
+    "services/**/*",
+    "adapters/**/*",
+    "schemas/**/*"
   ],
   "exclude": ["node_modules"]
 }
