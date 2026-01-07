@@ -12,6 +12,7 @@ COPY tools ./tools
 COPY adapters ./adapters
 COPY services ./services
 COPY schemas ./schemas
+
 RUN npm run build
 
 
@@ -24,7 +25,5 @@ COPY package*.json ./
 RUN npm install --production
 
 COPY --from=builder /app/dist ./dist
-
-EXPOSE 8000
 
 CMD ["npm", "start"]
