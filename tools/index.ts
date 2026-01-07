@@ -1,5 +1,4 @@
 import { getAdActivityTool } from "./get_ad_activity";
-import { resolveAdvertisingStatusTool } from "./resolve_advertising_status";
 
 export type McpTool = {
   name: string;
@@ -8,9 +7,6 @@ export type McpTool = {
   run: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
 };
 
-export const tools: McpTool[] = [
-  getAdActivityTool,
-  resolveAdvertisingStatusTool
-];
+export const tools: McpTool[] = [getAdActivityTool];
 
 export default tools;
