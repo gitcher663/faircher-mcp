@@ -27,4 +27,4 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 8000
 
-CMD ["node", "dist/src/server.js"]
+CMD ["npm", "start"]
