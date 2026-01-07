@@ -22,12 +22,18 @@ interface ToolDefinition {
  */
 const tools = rawTools as ToolDefinition[];
 
-const SYSTEM_PROMPT = `Strict workflow: Resolve → Confirm → Ask → Analyze.
-- Always call faircher.entity_lookup first to resolve user input via Supabase and persist an unconfirmed entity.
-- Present the returned canonical entity summary and request explicit user confirmation before any advertising tools.
-- Call faircher.confirm_entity with confirmed=true before invoking advertising or status tools.
-- Do not infer or fabricate advertising data; use only tool outputs.
-- Block advertising activity retrieval if the entity is not confirmed in Supabase.`;
+/**
+ * UPDATED SYSTEM PROMPT
+ * - Removes confirmation gating
+ * - Encourages direct domain-based lookup
+ * - Preserves factual/tool-only guarantees
+ */
+const SYSTEM_PROMPT = `Direct workflow: Input → Analyze → Respond.
+- Users may provide a company domain directly.
+- You may immediately invoke advertising and activity tools using the provided domain.
+- No entity confirmation or persistence step is required.
+- Do not fabricate advertising data; rely exclusively on tool outputs.
+- If data is unavailable, state so clearly without inference.`;
 
 app.post("/mcp", async (req: Request, res: Response) => {
   const { id, method, params } = req.body ?? {};
@@ -51,7 +57,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
         protocolVersion: "2024-11-05",
         serverInfo: {
           name: "faircher-mcp",
-          version: "2.0.0"
+          version: "2.1.0"
         },
         capabilities: {
           tools: {}
