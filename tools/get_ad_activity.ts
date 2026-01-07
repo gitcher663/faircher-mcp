@@ -1,4 +1,4 @@
-import { getAdActivity } from "../services/advertisingStatus";
+import { getAdActivity } from "../services/adActivity";
 import { McpTool } from "./index";
 
 const schema = require("../schemas/tools/get_ad_activity.schema.json");
@@ -30,7 +30,6 @@ export const getAdActivityTool: McpTool = {
       period
     });
 
-    // MCP-compliant response
     return {
       content: [
         {
