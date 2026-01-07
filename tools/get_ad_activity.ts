@@ -1,6 +1,10 @@
 import { getAdActivity } from "../services/adActivity";
 import { McpTool } from "./index";
 
+/**
+ * Inline JSON Schema
+ * (prevents runtime MODULE_NOT_FOUND errors in dist/)
+ */
 const schema: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
@@ -12,7 +16,7 @@ const schema: Record<string, unknown> = {
     metrics: {
       type: "array",
       description:
-        "Optional list of advertising metric keys to retrieve. If omitted, a default core metric set is returned.",
+        "Optional list of advertising metric keys to retrieve. If omitted, a default metric set is returned.",
       items: {
         type: "string"
       }
@@ -21,7 +25,7 @@ const schema: Record<string, unknown> = {
       type: "string",
       enum: ["recent", "last_30_days", "last_90_days"],
       description:
-        "Time period over which advertising activity should be evaluated."
+        "Time period over which advertising activity should be evaluated"
     }
   },
   required: ["domain"]
@@ -30,23 +34,28 @@ const schema: Record<string, unknown> = {
 export const getAdActivityTool: McpTool = {
   name: "faircher.get_ad_activity",
   description:
-    "Retrieve structured advertising activity metrics for a business based on its domain, including presence indicators and quantitative estimates across supported media channels.",
+    "Retrieve structured advertising activity signals for a business based on its domain. Returns only evidence-backed results produced by FairCher services.",
   inputSchema: schema,
 
   async run(args) {
-    const domain = String(args.domain ?? "").trim();
+    const domain = typeof args.domain === "string"
+      ? args.domain.trim()
+      : "";
+
+    if (!domain) {
+      throw new Error("Missing required parameter: domain");
+    }
 
     const metrics = Array.isArray(args.metrics)
-      ? (args.metrics as string[])
+      ? args.metrics.map(String)
       : undefined;
 
     const period =
-      (args.period as "recent" | "last_30_days" | "last_90_days" | undefined) ??
-      undefined;
-
-    if (!domain) {
-      throw new Error("Missing required input parameter: domain");
-    }
+      args.period === "recent" ||
+      args.period === "last_30_days" ||
+      args.period === "last_90_days"
+        ? args.period
+        : undefined;
 
     const data = await getAdActivity({
       domain,
