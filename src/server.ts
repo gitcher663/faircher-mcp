@@ -46,9 +46,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
   }
 
-  /**
-   * MCP: initialize
-   */
+  // MCP: initialize
   if (method === "initialize") {
     return res.json({
       jsonrpc: "2.0",
@@ -67,9 +65,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
   }
 
-  /**
-   * MCP: tools/list
-   */
+  // MCP: tools/list
   if (method === "tools/list") {
     const listedTools = tools.map((tool: ToolDefinition) => ({
       name: tool.name,
@@ -84,9 +80,71 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
   }
 
-  /**
-   * MCP: tools/call
-   */
+  // MCP: tools/call
   if (method === "tools/call") {
     const toolName = params?.name as string | undefined;
-    const a
+    const args = (params?.arguments ?? {}) as Record<string, unknown>;
+
+    const tool = tools.find(t => t.name === toolName);
+
+    if (!tool) {
+      return res.status(404).json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32601, message: `Tool not found: ${toolName}` }
+      });
+    }
+
+    try {
+      const result = await tool.run(args);
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown tool error";
+
+      return res.status(400).json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32000, message }
+      });
+    }
+  }
+
+  // MCP: resources/list (required)
+  if (method === "resources/list") {
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      result: { resources: [] }
+    });
+  }
+
+  // MCP: prompts/list (required)
+  if (method === "prompts/list") {
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      result: { prompts: [] }
+    });
+  }
+
+  return res.status(404).json({
+    jsonrpc: "2.0",
+    id,
+    error: { code: -32601, message: `Method not found: ${method}` }
+  });
+});
+
+// Health check
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+});
+
+// Start server
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Faircher MCP server listening on port ${PORT}`);
+});
