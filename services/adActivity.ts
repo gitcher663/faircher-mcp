@@ -1,3 +1,5 @@
+import { observeAdsByDomain } from "../adapters/serpAdsAdapter";
+
 export type AdPlacement =
   | "search"
   | "display"
@@ -30,57 +32,14 @@ export type AdActivity = {
 
   geoCoverage: string[];
 
-  firstSeen: string;
-  lastSeen: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
 };
 
 export type GetAdActivityInput = {
   domain: string;
   period?: "recent" | "last_30_days" | "last_90_days";
 };
-
-/**
- * Adapter boundary.
- * This will later be implemented by:
- *   - SERPAPI
- *   - other ad observation sources
- */
-async function observeAdsByDomain(
-  domain: string,
-  period: "recent" | "last_30_days" | "last_90_days"
-): Promise<ObservedCreative[]> {
-  /**
-   * TEMPORARY STUB
-   * ----------------
-   * This returns placeholder observations so that:
-   * - MCP plumbing can be validated
-   * - The AdActivity contract remains stable
-   *
-   * Replace ONLY this function body when wiring SERPAPI.
-   */
-
-  const now = new Date().toISOString();
-  const sevenDaysAgo = new Date(
-    Date.now() - 7 * 24 * 60 * 60 * 1000
-  ).toISOString();
-
-  return [
-    {
-      placement: "search",
-      headline: "Brake Service Near You",
-      description: "Trusted auto repair services",
-      landingPage: `https://${domain}/offers`,
-      firstSeen: sevenDaysAgo,
-      lastSeen: now
-    },
-    {
-      placement: "video",
-      landingPage: `https://${domain}`,
-      firstSeen: sevenDaysAgo,
-      lastSeen: now
-    }
-  ];
-}
 
 export async function getAdActivity(
   input: GetAdActivityInput
@@ -93,12 +52,7 @@ export async function getAdActivity(
 
   const period = input.period ?? "recent";
 
-  /**
-   * Core rule:
-   * This service assembles evidence.
-   * It does NOT guess spend, reach, or impressions.
-   */
-
+  // 🔴 THIS IS NOW THE REAL SERPAPI CALL PATH
   const creatives = await observeAdsByDomain(domain, period);
 
   const placements = Array.from(
@@ -129,14 +83,14 @@ export async function getAdActivity(
     confidence: creatives.length > 0 ? "high" : "low",
 
     placements,
-    platforms: creatives.length > 0 ? ["google"] : [],
+    platforms: placements.length > 0 ? ["google"] : [],
 
     creativesObserved: creatives.length,
     sampleCreatives: creatives.slice(0, 5),
 
     geoCoverage: creatives.length > 0 ? ["US"] : [],
 
-    firstSeen: firstSeen ?? new Date().toISOString(),
-    lastSeen: lastSeen ?? new Date().toISOString()
+    firstSeen,
+    lastSeen
   };
 }
