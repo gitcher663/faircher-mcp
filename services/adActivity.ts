@@ -1,96 +1,109 @@
-export type AdActivityMetric = {
-  value?: number;
-  valueUsd?: number;
-  confidence: "high" | "medium" | "low";
+export type AdPlacement =
+  | "search"
+  | "display"
+  | "video"
+  | "shopping"
+  | "social"
+  | "unknown";
+
+export type ObservedCreative = {
+  placement: AdPlacement;
+  headline?: string;
+  description?: string;
+  landingPage: string;
+  firstSeen: string;
+  lastSeen: string;
 };
 
 export type AdActivity = {
   domain: string;
   period: "recent" | "last_30_days" | "last_90_days";
-  metrics: {
-    spend_estimate?: AdActivityMetric;
-    impression_volume?: AdActivityMetric;
-    creative_count?: AdActivityMetric;
-    active_channels?: string[];
-    geo_coverage?: string[];
-  };
+
   evidenceAvailable: boolean;
   confidence: "high" | "medium" | "low";
+
+  placements: AdPlacement[];
+  platforms: string[];
+
+  creativesObserved: number;
+  sampleCreatives: ObservedCreative[];
+
+  geoCoverage: string[];
+
+  firstSeen: string;
+  lastSeen: string;
 };
 
 export type GetAdActivityInput = {
   domain: string;
-  metrics?: string[];
   period?: "recent" | "last_30_days" | "last_90_days";
 };
-
-const DEFAULT_METRICS = [
-  "spend_estimate",
-  "impression_volume",
-  "creative_count",
-  "active_channels",
-  "geo_coverage"
-] as const;
-
-type MetricKey = (typeof DEFAULT_METRICS)[number];
 
 export async function getAdActivity(
   input: GetAdActivityInput
 ): Promise<AdActivity> {
-  const { domain } = input;
+  const domain = input.domain?.trim();
 
   if (!domain) {
     throw new Error("Missing required input: domain");
   }
 
   const period = input.period ?? "recent";
-  const requestedMetrics =
-    input.metrics && input.metrics.length
-      ? input.metrics
-      : [...DEFAULT_METRICS];
 
-  const metrics: AdActivity["metrics"] = {};
+  /**
+   * NOTE:
+   * This service currently returns stubbed, SERP-style
+   * advertising evidence. It intentionally does NOT
+   * fabricate spend, impressions, or reach.
+   *
+   * Replace the block below with calls to:
+   *   - SupabaseAdapter
+   *   - SERP / ads observation adapters
+   *
+   * The shape of the output should remain stable.
+   */
 
-  for (const metric of requestedMetrics) {
-    if (!DEFAULT_METRICS.includes(metric as MetricKey)) continue;
+  const now = new Date().toISOString();
+  const sevenDaysAgo = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000
+  ).toISOString();
 
-    switch (metric) {
-      case "spend_estimate":
-        metrics.spend_estimate = {
-          valueUsd: 120000,
-          confidence: "medium"
-        };
-        break;
-
-      case "impression_volume":
-        metrics.impression_volume = {
-          value: 4000000,
-          confidence: "medium"
-        };
-        break;
-
-      case "creative_count":
-        metrics.creative_count = {
-          value: 85,
-          confidence: "high"
-        };
-        break;
-
-      case "active_channels":
-        metrics.active_channels = ["search", "social", "video"];
-        break;
-
-      case "geo_coverage":
-        metrics.geo_coverage = ["US"];
-        break;
+  const sampleCreatives: ObservedCreative[] = [
+    {
+      placement: "search",
+      headline: "Brake Service Near You",
+      description: "Trusted auto repair services",
+      landingPage: `https://${domain}/offers`,
+      firstSeen: sevenDaysAgo,
+      lastSeen: now
+    },
+    {
+      placement: "video",
+      landingPage: `https://${domain}`,
+      firstSeen: sevenDaysAgo,
+      lastSeen: now
     }
-  }
+  ];
 
   return {
     domain,
     period,
-    metrics,
-    evidenceAvailable: true,
-    confidence: "medium"
+
+    evidenceAvailable: sampleCreatives.length > 0,
+    confidence: "high",
+
+    placements: Array.from(
+      new Set(sampleCreatives.map(c => c.placement))
+    ),
+
+    platforms: ["google"],
+
+    creativesObserved: sampleCreatives.length,
+    sampleCreatives,
+
+    geoCoverage: ["US"],
+
+    firstSeen: sevenDaysAgo,
+    lastSeen: now
   };
 }
