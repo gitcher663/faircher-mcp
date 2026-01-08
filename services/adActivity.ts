@@ -1,4 +1,4 @@
-import { observeAdsByDomain } from "../adapters/serpAdsAdapter";
+import { observeAdsByDomain } from "../adapters/serpadsadapter";
 
 export type AdPlacement =
   | "search"
@@ -52,45 +52,5 @@ export async function getAdActivity(
 
   const period = input.period ?? "recent";
 
-  // 🔴 THIS IS NOW THE REAL SERPAPI CALL PATH
-  const creatives = await observeAdsByDomain(domain, period);
-
-  const placements = Array.from(
-    new Set(creatives.map(c => c.placement))
-  );
-
-  const firstSeen =
-    creatives.length > 0
-      ? creatives.reduce(
-          (min, c) => (c.firstSeen < min ? c.firstSeen : min),
-          creatives[0].firstSeen
-        )
-      : null;
-
-  const lastSeen =
-    creatives.length > 0
-      ? creatives.reduce(
-          (max, c) => (c.lastSeen > max ? c.lastSeen : max),
-          creatives[0].lastSeen
-        )
-      : null;
-
-  return {
-    domain,
-    period,
-
-    evidenceAvailable: creatives.length > 0,
-    confidence: creatives.length > 0 ? "high" : "low",
-
-    placements,
-    platforms: placements.length > 0 ? ["google"] : [],
-
-    creativesObserved: creatives.length,
-    sampleCreatives: creatives.slice(0, 5),
-
-    geoCoverage: creatives.length > 0 ? ["US"] : [],
-
-    firstSeen,
-    lastSeen
-  };
-}
+  const creatives: ObservedCreative[] =
+    await observeAdsByDomain(domain, period);
