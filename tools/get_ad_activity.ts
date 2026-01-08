@@ -34,13 +34,12 @@ const schema: Record<string, unknown> = {
 export const getAdActivityTool: McpTool = {
   name: "faircher.get_ad_activity",
   description:
-    "Retrieve structured advertising activity signals for a business based on its domain. Returns only evidence-backed results produced by FairCher services.",
+    "Retrieve structured advertising activity signals for a business based on its domain.",
   inputSchema: schema,
 
   async run(args) {
-    const domain = typeof args.domain === "string"
-      ? args.domain.trim()
-      : "";
+    const domain =
+      typeof args.domain === "string" ? args.domain.trim() : "";
 
     if (!domain) {
       throw new Error("Missing required parameter: domain");
