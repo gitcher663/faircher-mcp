@@ -3,7 +3,7 @@ import { McpTool } from "./index";
 
 /**
  * Inline JSON Schema
- * (prevents runtime MODULE_NOT_FOUND errors in dist/)
+ * Domain-first, evidence-only.
  */
 const schema: Record<string, unknown> = {
   type: "object",
@@ -12,14 +12,6 @@ const schema: Record<string, unknown> = {
     domain: {
       type: "string",
       description: "Company domain to analyze advertising activity for"
-    },
-    metrics: {
-      type: "array",
-      description:
-        "Optional list of advertising metric keys to retrieve. If omitted, a default metric set is returned.",
-      items: {
-        type: "string"
-      }
     },
     period: {
       type: "string",
@@ -34,20 +26,16 @@ const schema: Record<string, unknown> = {
 export const getAdActivityTool: McpTool = {
   name: "faircher.get_ad_activity",
   description:
-    "Retrieve structured advertising activity signals for a business based on its domain.",
+    "Retrieve evidence-backed advertising activity observed for a business domain.",
   inputSchema: schema,
 
-  async run(args: any) {
+  async run(args) {
     const domain =
       typeof args.domain === "string" ? args.domain.trim() : "";
 
     if (!domain) {
       throw new Error("Missing required parameter: domain");
     }
-
-    const metrics = Array.isArray(args.metrics)
-      ? args.metrics.map(String)
-      : undefined;
 
     const period =
       args.period === "recent" ||
@@ -58,7 +46,6 @@ export const getAdActivityTool: McpTool = {
 
     const data = await getAdActivity({
       domain,
-      metrics,
       period
     });
 
