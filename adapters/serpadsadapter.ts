@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import type {
   ObservedCreative,
   AdPlacement
@@ -71,7 +70,7 @@ export async function observeAdsByDomain(
 
   console.log(
     "[SERP ADS ADAPTER] ads returned:",
-    Array.isArray(ads) ? ads.length : 0
+    ads.length
   );
 
   const now = new Date().toISOString();
