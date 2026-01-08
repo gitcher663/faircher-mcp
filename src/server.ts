@@ -10,26 +10,43 @@ type MCPRequest = {
   };
 };
 
+/**
+ * Helper to wrap ALL responses in MCP format
+ */
+function mcpResponse(payload: unknown) {
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(payload, null, 2)
+      }
+    ]
+  };
+}
+
 async function handleRequest(req: MCPRequest) {
   const { method, params } = req;
 
+  console.log("MCP METHOD:", method);
+  console.log("MCP PARAMS:", JSON.stringify(params, null, 2));
+
   if (method === "initialize") {
-    return {
+    return mcpResponse({
       protocolVersion: "2024-11-05",
       capabilities: {
         tools: {}
       }
-    };
+    });
   }
 
   if (method === "tools/list") {
-    return {
-      tools: tools.map(t => ({
+    return mcpResponse(
+      tools.map((t: McpTool) => ({
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema
       }))
-    };
+    );
   }
 
   if (method === "tools/call") {
@@ -42,13 +59,14 @@ async function handleRequest(req: MCPRequest) {
     );
 
     if (!tool) {
-      throw new Error("Tool not found");
+      throw new Error(`Tool not found: ${params.name}`);
     }
 
-    return await tool.run(params.arguments ?? {});
+    const result = await tool.run(params.arguments ?? {});
+    return mcpResponse(result);
   }
 
-  throw new Error(`Unknown method: ${method}`);
+  throw new Error(`Unknown MCP method: ${method}`);
 }
 
 const PORT = Number(process.env.PORT || 3000);
@@ -61,15 +79,25 @@ createServer((req, res) => {
   });
 
   req.on("end", async () => {
+    console.log("RAW REQUEST BODY:", body);
+
     try {
       const json = JSON.parse(body);
       const result = await handleRequest(json);
 
+      console.log("MCP RESPONSE:", JSON.stringify(result, null, 2));
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result));
     } catch (err: any) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end(err?.message || "Internal server error");
+      console.error("SERVER ERROR:", err);
+
+      const errorResponse = mcpResponse({
+        error: err?.message || "Internal server error"
+      });
+
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(errorResponse));
     }
   });
 }).listen(PORT, "0.0.0.0", () => {
