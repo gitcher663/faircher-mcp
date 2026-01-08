@@ -51,19 +51,27 @@ async function handleRequest(req: MCPRequest) {
   throw new Error(`Unknown method: ${method}`);
 }
 
+const PORT = Number(process.env.PORT || 3000);
+
 createServer((req, res) => {
   let body = "";
 
-  req.on("data", chunk => (body += chunk));
+  req.on("data", chunk => {
+    body += chunk;
+  });
+
   req.on("end", async () => {
     try {
       const json = JSON.parse(body);
       const result = await handleRequest(json);
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result));
     } catch (err: any) {
-      res.writeHead(500);
-      res.end(err.message);
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end(err?.message || "Internal server error");
     }
   });
-}).listen(3000);
+}).listen(PORT, "0.0.0.0", () => {
+  console.log(`MCP server listening on port ${PORT}`);
+});
