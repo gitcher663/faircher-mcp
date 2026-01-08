@@ -54,3 +54,47 @@ export async function getAdActivity(
 
   const creatives: ObservedCreative[] =
     await observeAdsByDomain(domain, period);
+
+  const placements: AdPlacement[] = Array.from(
+    new Set<AdPlacement>(
+      creatives.map((c: ObservedCreative) => c.placement)
+    )
+  );
+
+  const firstSeen =
+    creatives.length > 0
+      ? creatives.reduce(
+          (min: string, c: ObservedCreative) =>
+            c.firstSeen < min ? c.firstSeen : min,
+          creatives[0].firstSeen
+        )
+      : null;
+
+  const lastSeen =
+    creatives.length > 0
+      ? creatives.reduce(
+          (max: string, c: ObservedCreative) =>
+            c.lastSeen > max ? c.lastSeen : max,
+          creatives[0].lastSeen
+        )
+      : null;
+
+  return {
+    domain,
+    period,
+
+    evidenceAvailable: creatives.length > 0,
+    confidence: creatives.length > 0 ? "high" : "low",
+
+    placements,
+    platforms: placements.length > 0 ? ["google"] : [],
+
+    creativesObserved: creatives.length,
+    sampleCreatives: creatives.slice(0, 5),
+
+    geoCoverage: creatives.length > 0 ? ["US"] : [],
+
+    firstSeen,
+    lastSeen
+  };
+}
