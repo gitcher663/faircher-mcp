@@ -22,9 +22,12 @@ export async function observeAdsByDomain(
   domain: string,
   period: "recent" | "last_30_days" | "last_90_days"
 ): Promise<ObservedCreative[]> {
+  console.log("[SERP ADS ADAPTER] invoked for domain:", domain, "period:", period);
+
   const apiKey = process.env.SERPAPI_API_KEY;
 
   if (!apiKey) {
+    console.error("[SERP ADS ADAPTER] missing SERPAPI_API_KEY");
     throw new Error("Missing SERPAPI_API_KEY environment variable");
   }
 
@@ -42,10 +45,17 @@ export async function observeAdsByDomain(
   url.searchParams.set("gl", "us");
   url.searchParams.set("api_key", apiKey);
 
+  console.log("[SERP ADS ADAPTER] calling SERPAPI:", url.toString());
+
   const response = await fetch(url.toString());
 
   if (!response.ok) {
     const text = await response.text();
+    console.error(
+      "[SERP ADS ADAPTER] SERPAPI request failed:",
+      response.status,
+      text
+    );
     throw new Error(
       `SERPAPI request failed (${response.status}): ${text}`
     );
@@ -58,6 +68,11 @@ export async function observeAdsByDomain(
    * We intentionally ignore all other sections for now.
    */
   const ads = Array.isArray(json.ads) ? json.ads : [];
+
+  console.log(
+    "[SERP ADS ADAPTER] ads returned:",
+    Array.isArray(ads) ? ads.length : 0
+  );
 
   const now = new Date().toISOString();
 
@@ -75,6 +90,11 @@ export async function observeAdsByDomain(
         lastSeen: now
       };
     });
+
+  console.log(
+    "[SERP ADS ADAPTER] creatives normalized:",
+    creatives.length
+  );
 
   return creatives;
 }
