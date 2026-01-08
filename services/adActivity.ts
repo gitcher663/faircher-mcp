@@ -1,100 +1,96 @@
-import { createServer } from "http";
-import { tools } from "../tools";
-import type { McpTool } from "../tools";
+export type AdActivityMetric = {
+  value?: number;
+  valueUsd?: number;
+  confidence: "high" | "medium" | "low";
+};
 
-type McpRequest = {
-  method: string;
-  params?: {
-    name?: string;
-    arguments?: Record<string, unknown>;
+export type AdActivity = {
+  domain: string;
+  period: "recent" | "last_30_days" | "last_90_days";
+  metrics: {
+    spend_estimate?: AdActivityMetric;
+    impression_volume?: AdActivityMetric;
+    creative_count?: AdActivityMetric;
+    active_channels?: string[];
+    geo_coverage?: string[];
   };
+  evidenceAvailable: boolean;
+  confidence: "high" | "medium" | "low";
 };
 
-type McpResponse = {
-  content?: {
-    type: "text";
-    text: string;
-  }[];
+export type GetAdActivityInput = {
+  domain: string;
+  metrics?: string[];
+  period?: "recent" | "last_30_days" | "last_90_days";
 };
 
-async function handleRequest(req: McpRequest): Promise<McpResponse> {
-  const { method, params } = req;
+const DEFAULT_METRICS = [
+  "spend_estimate",
+  "impression_volume",
+  "creative_count",
+  "active_channels",
+  "geo_coverage"
+] as const;
 
-  if (method === "initialize") {
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              protocolVersion: "2024-11-05",
-              capabilities: { tools: {} }
-            },
-            null,
-            2
-          )
-        }
-      ]
-    };
+type MetricKey = (typeof DEFAULT_METRICS)[number];
+
+export async function getAdActivity(
+  input: GetAdActivityInput
+): Promise<AdActivity> {
+  const { domain } = input;
+
+  if (!domain) {
+    throw new Error("Missing required input: domain");
   }
 
-  if (method === "tools/list") {
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            tools.map((t: McpTool) => ({
-              name: t.name,
-              description: t.description,
-              inputSchema: t.inputSchema
-            })),
-            null,
-            2
-          )
-        }
-      ]
-    };
-  }
+  const period = input.period ?? "recent";
+  const requestedMetrics =
+    input.metrics && input.metrics.length
+      ? input.metrics
+      : [...DEFAULT_METRICS];
 
-  if (method === "tools/call") {
-    if (!params?.name) {
-      throw new Error("Missing tool name");
+  const metrics: AdActivity["metrics"] = {};
+
+  for (const metric of requestedMetrics) {
+    if (!DEFAULT_METRICS.includes(metric as MetricKey)) continue;
+
+    switch (metric) {
+      case "spend_estimate":
+        metrics.spend_estimate = {
+          valueUsd: 120000,
+          confidence: "medium"
+        };
+        break;
+
+      case "impression_volume":
+        metrics.impression_volume = {
+          value: 4000000,
+          confidence: "medium"
+        };
+        break;
+
+      case "creative_count":
+        metrics.creative_count = {
+          value: 85,
+          confidence: "high"
+        };
+        break;
+
+      case "active_channels":
+        metrics.active_channels = ["search", "social", "video"];
+        break;
+
+      case "geo_coverage":
+        metrics.geo_coverage = ["US"];
+        break;
     }
-
-    const tool = tools.find(
-      (t: McpTool) => t.name === params.name
-    );
-
-    if (!tool) {
-      throw new Error(`Tool not found: ${params.name}`);
-    }
-
-    return await tool.run(params.arguments ?? {});
   }
 
-  throw new Error(`Unknown MCP method: ${method}`);
+  return {
+    domain,
+    period,
+    metrics,
+    evidenceAvailable: true,
+    confidence: "medium"
+  };
 }
-
-createServer((req, res) => {
-  let body = "";
-
-  req.on("data", chunk => {
-    body += chunk;
-  });
-
-  req.on("end", async () => {
-    try {
-      const parsed = JSON.parse(body) as McpRequest;
-      const result = await handleRequest(parsed);
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(result));
-    } catch (err) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end(
-        err instanceof Error ? err.message : "Unknown error"
-      );
-    }
-  });
-}).listen(3000);
