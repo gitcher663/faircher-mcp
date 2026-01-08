@@ -39,28 +39,24 @@ export type GetAdActivityInput = {
   period?: "recent" | "last_30_days" | "last_90_days";
 };
 
-export async function getAdActivity(
-  input: GetAdActivityInput
-): Promise<AdActivity> {
-  const domain = input.domain?.trim();
-
-  if (!domain) {
-    throw new Error("Missing required input: domain");
-  }
-
-  const period = input.period ?? "recent";
-
+/**
+ * Adapter boundary.
+ * This will later be implemented by:
+ *   - SERPAPI
+ *   - other ad observation sources
+ */
+async function observeAdsByDomain(
+  domain: string,
+  period: "recent" | "last_30_days" | "last_90_days"
+): Promise<ObservedCreative[]> {
   /**
-   * NOTE:
-   * This service currently returns stubbed, SERP-style
-   * advertising evidence. It intentionally does NOT
-   * fabricate spend, impressions, or reach.
+   * TEMPORARY STUB
+   * ----------------
+   * This returns placeholder observations so that:
+   * - MCP plumbing can be validated
+   * - The AdActivity contract remains stable
    *
-   * Replace the block below with calls to:
-   *   - SupabaseAdapter
-   *   - SERP / ads observation adapters
-   *
-   * The shape of the output should remain stable.
+   * Replace ONLY this function body when wiring SERPAPI.
    */
 
   const now = new Date().toISOString();
@@ -68,7 +64,7 @@ export async function getAdActivity(
     Date.now() - 7 * 24 * 60 * 60 * 1000
   ).toISOString();
 
-  const sampleCreatives: ObservedCreative[] = [
+  return [
     {
       placement: "search",
       headline: "Brake Service Near You",
@@ -84,26 +80,63 @@ export async function getAdActivity(
       lastSeen: now
     }
   ];
+}
+
+export async function getAdActivity(
+  input: GetAdActivityInput
+): Promise<AdActivity> {
+  const domain = input.domain?.trim();
+
+  if (!domain) {
+    throw new Error("Missing required input: domain");
+  }
+
+  const period = input.period ?? "recent";
+
+  /**
+   * Core rule:
+   * This service assembles evidence.
+   * It does NOT guess spend, reach, or impressions.
+   */
+
+  const creatives = await observeAdsByDomain(domain, period);
+
+  const placements = Array.from(
+    new Set(creatives.map(c => c.placement))
+  );
+
+  const firstSeen =
+    creatives.length > 0
+      ? creatives.reduce(
+          (min, c) => (c.firstSeen < min ? c.firstSeen : min),
+          creatives[0].firstSeen
+        )
+      : null;
+
+  const lastSeen =
+    creatives.length > 0
+      ? creatives.reduce(
+          (max, c) => (c.lastSeen > max ? c.lastSeen : max),
+          creatives[0].lastSeen
+        )
+      : null;
 
   return {
     domain,
     period,
 
-    evidenceAvailable: sampleCreatives.length > 0,
-    confidence: "high",
+    evidenceAvailable: creatives.length > 0,
+    confidence: creatives.length > 0 ? "high" : "low",
 
-    placements: Array.from(
-      new Set(sampleCreatives.map(c => c.placement))
-    ),
+    placements,
+    platforms: creatives.length > 0 ? ["google"] : [],
 
-    platforms: ["google"],
+    creativesObserved: creatives.length,
+    sampleCreatives: creatives.slice(0, 5),
 
-    creativesObserved: sampleCreatives.length,
-    sampleCreatives,
+    geoCoverage: creatives.length > 0 ? ["US"] : [],
 
-    geoCoverage: ["US"],
-
-    firstSeen: sevenDaysAgo,
-    lastSeen: now
+    firstSeen: firstSeen ?? new Date().toISOString(),
+    lastSeen: lastSeen ?? new Date().toISOString()
   };
 }
