@@ -38,4 +38,32 @@ async function handleRequest(req: MCPRequest) {
     }
 
     const tool = tools.find(
-      (t: McpTo
+      (t: McpTool) => t.name === params.name
+    );
+
+    if (!tool) {
+      throw new Error("Tool not found");
+    }
+
+    return await tool.run(params.arguments ?? {});
+  }
+
+  throw new Error(`Unknown method: ${method}`);
+}
+
+createServer((req, res) => {
+  let body = "";
+
+  req.on("data", chunk => (body += chunk));
+  req.on("end", async () => {
+    try {
+      const json = JSON.parse(body);
+      const result = await handleRequest(json);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(err.message);
+    }
+  });
+}).listen(3000);
