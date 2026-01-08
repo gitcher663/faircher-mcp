@@ -37,7 +37,7 @@ export const getAdActivityTool: McpTool = {
     "Retrieve structured advertising activity signals for a business based on its domain.",
   inputSchema: schema,
 
-  async run(args) {
+  async run(args: any) {
     const domain =
       typeof args.domain === "string" ? args.domain.trim() : "";
 
