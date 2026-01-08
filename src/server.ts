@@ -11,16 +11,16 @@ type MCPRequest = {
 };
 
 /**
- * Helper to wrap ALL responses in MCP format
+ * MCP text response helper (non-tool responses only)
  */
-function mcpResponse(payload: unknown) {
+function textResponse(payload: unknown) {
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(payload, null, 2)
-      }
-    ]
+        text: JSON.stringify(payload, null, 2),
+      },
+    ],
   };
 }
 
@@ -30,25 +30,38 @@ async function handleRequest(req: MCPRequest) {
   console.log("MCP METHOD:", method);
   console.log("MCP PARAMS:", JSON.stringify(params, null, 2));
 
+  /**
+   * INITIALIZE
+   * IMPORTANT: Must advertise tool capability
+   */
   if (method === "initialize") {
-    return mcpResponse({
+    return {
       protocolVersion: "2024-11-05",
       capabilities: {
-        tools: {}
-      }
-    });
+        tools: {
+          list: true,
+          call: true,
+        },
+      },
+    };
   }
 
+  /**
+   * LIST TOOLS
+   */
   if (method === "tools/list") {
-    return mcpResponse(
-      tools.map((t: McpTool) => ({
+    return {
+      tools: tools.map((t: McpTool) => ({
         name: t.name,
         description: t.description,
-        inputSchema: t.inputSchema
-      }))
-    );
+        inputSchema: t.inputSchema,
+      })),
+    };
   }
 
+  /**
+   * CALL TOOL
+   */
   if (method === "tools/call") {
     if (!params?.name) {
       throw new Error("Missing tool name");
@@ -62,8 +75,18 @@ async function handleRequest(req: MCPRequest) {
       throw new Error(`Tool not found: ${params.name}`);
     }
 
+    console.log(`TOOL INVOKED: ${tool.name}`);
+    console.log("TOOL ARGUMENTS:", params.arguments);
+
     const result = await tool.run(params.arguments ?? {});
-    return mcpResponse(result);
+
+    console.log("TOOL RESULT:", result);
+
+    /**
+     * IMPORTANT:
+     * Tool calls must return RAW result
+     */
+    return result;
   }
 
   throw new Error(`Unknown MCP method: ${method}`);
@@ -85,19 +108,19 @@ createServer((req, res) => {
       const json = JSON.parse(body);
       const result = await handleRequest(json);
 
-      console.log("MCP RESPONSE:", JSON.stringify(result, null, 2));
-
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result));
     } catch (err: any) {
       console.error("SERVER ERROR:", err);
 
-      const errorResponse = mcpResponse({
-        error: err?.message || "Internal server error"
-      });
-
       res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(errorResponse));
+      res.end(
+        JSON.stringify(
+          textResponse({
+            error: err?.message || "Internal server error",
+          })
+        )
+      );
     }
   });
 }).listen(PORT, "0.0.0.0", () => {
