@@ -2,6 +2,13 @@ import { createServer } from "http";
 import { tools } from "../tools";
 import type { McpTool } from "../tools";
 
+/**
+ * BUILD VERIFICATION LOG
+ * If you do not see this in Railway logs,
+ * the deployed code is NOT this file.
+ */
+console.log("SERVER CODE VERSION:", "WITH_TOOLS_CAPABILITY");
+
 type MCPRequest = {
   method: string;
   params?: {
@@ -11,7 +18,7 @@ type MCPRequest = {
 };
 
 /**
- * MCP text response helper (non-tool responses only)
+ * Text response helper (used only for errors / non-tool replies)
  */
 function textResponse(payload: unknown) {
   return {
@@ -32,7 +39,7 @@ async function handleRequest(req: MCPRequest) {
 
   /**
    * INITIALIZE
-   * IMPORTANT: Must advertise tool capability
+   * Advertise tool capability explicitly
    */
   if (method === "initialize") {
     return {
@@ -47,9 +54,11 @@ async function handleRequest(req: MCPRequest) {
   }
 
   /**
-   * LIST TOOLS
+   * TOOLS LIST
    */
   if (method === "tools/list") {
+    console.log("TOOLS LIST REQUESTED");
+
     return {
       tools: tools.map((t: McpTool) => ({
         name: t.name,
@@ -60,23 +69,21 @@ async function handleRequest(req: MCPRequest) {
   }
 
   /**
-   * CALL TOOL
+   * TOOL CALL
    */
   if (method === "tools/call") {
     if (!params?.name) {
       throw new Error("Missing tool name");
     }
 
-    const tool = tools.find(
-      (t: McpTool) => t.name === params.name
-    );
+    const tool = tools.find((t: McpTool) => t.name === params.name);
 
     if (!tool) {
       throw new Error(`Tool not found: ${params.name}`);
     }
 
-    console.log(`TOOL INVOKED: ${tool.name}`);
-    console.log("TOOL ARGUMENTS:", params.arguments);
+    console.log("TOOL INVOKED:", tool.name);
+    console.log("TOOL ARGUMENTS:", params.arguments ?? {});
 
     const result = await tool.run(params.arguments ?? {});
 
@@ -92,7 +99,7 @@ async function handleRequest(req: MCPRequest) {
   throw new Error(`Unknown MCP method: ${method}`);
 }
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 8080);
 
 createServer((req, res) => {
   let body = "";
