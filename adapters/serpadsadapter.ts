@@ -4,24 +4,28 @@ import type {
 } from "../services/adActivity";
 
 /**
- * SERP Ads Observation Adapter
+ * SERP Ads Observation Adapter (MCP-safe)
  *
  * Responsibility:
- * - Call SERPAPI
+ * - Call SERPAPI (bounded, timeout-enforced)
  * - Observe *ads* (not entities)
  * - Normalize results into ObservedCreative[]
  *
- * Non-responsibilities:
- * - Entity resolution
- * - Persistence
- * - Confidence scoring
- * - Supabase access
+ * MCP guarantees:
+ * - Hard timeout
+ * - No unbounded awaits
+ * - Always resolves or throws deterministically
  */
 export async function observeAdsByDomain(
   domain: string,
   period: "recent" | "last_30_days" | "last_90_days"
 ): Promise<ObservedCreative[]> {
-  console.log("[SERP ADS ADAPTER] invoked for domain:", domain, "period:", period);
+  console.log(
+    "[SERP ADS ADAPTER] invoked for domain:",
+    domain,
+    "period:",
+    period
+  );
 
   const apiKey = process.env.SERPAPI_API_KEY;
 
@@ -33,7 +37,6 @@ export async function observeAdsByDomain(
   /**
    * Conservative starting point:
    * Google Search Ads only.
-   * We do NOT claim display, shopping, or social yet.
    */
   const query = `site:${domain}`;
 
@@ -46,44 +49,68 @@ export async function observeAdsByDomain(
 
   console.log("[SERP ADS ADAPTER] calling SERPAPI:", url.toString());
 
-  const response = await fetch(url.toString());
+  // --- HARD TIMEOUT (CRITICAL FOR MCP) ---
+  const controller = new AbortController();
+  const timeoutMs = 8000; // 8s max — safe for ChatGPT tools
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+
+  try {
+    response = await fetch(url.toString(), {
+      signal: controller.signal
+    });
+  } catch (err) {
+    console.error(
+      "[SERP ADS ADAPTER] SERPAPI fetch failed or timed out:",
+      err
+    );
+    throw new Error("SERPAPI request failed or timed out");
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
-    const text = await response.text();
+    const text = await response.text().catch(() => "");
     console.error(
       "[SERP ADS ADAPTER] SERPAPI request failed:",
       response.status,
       text
     );
     throw new Error(
-      `SERPAPI request failed (${response.status}): ${text}`
+      `SERPAPI request failed (${response.status})`
     );
   }
 
-  const json = await response.json();
+  let json: any;
+  try {
+    json = await response.json();
+  } catch (err) {
+    console.error("[SERP ADS ADAPTER] invalid JSON response:", err);
+    throw new Error("Invalid JSON returned by SERPAPI");
+  }
 
   /**
    * SERPAPI text ads are typically returned under `ads`
-   * We intentionally ignore all other sections for now.
    */
-  const ads = Array.isArray(json.ads) ? json.ads : [];
+  const ads = Array.isArray(json?.ads) ? json.ads : [];
 
-  console.log(
-    "[SERP ADS ADAPTER] ads returned:",
-    ads.length
-  );
+  console.log("[SERP ADS ADAPTER] ads returned:", ads.length);
 
   const now = new Date().toISOString();
 
   const creatives: ObservedCreative[] = ads
-    .filter((ad: any) => typeof ad.link === "string")
+    .filter((ad: any) => typeof ad?.link === "string")
     .map((ad: any) => {
       const placement: AdPlacement = "search";
 
       return {
         placement,
-        headline: ad.title,
-        description: ad.description,
+        headline: typeof ad.title === "string" ? ad.title : undefined,
+        description:
+          typeof ad.description === "string"
+            ? ad.description
+            : undefined,
         landingPage: ad.link,
         firstSeen: now,
         lastSeen: now
