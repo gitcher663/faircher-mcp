@@ -81,4 +81,90 @@ app.get("/sse", (req, res) => {
 
   // 2) capabilities — advertise tools (object form)
   const capabilitiesPayload = { tools: capabilitiesTools };
-  res.write(`event: capabilities\ndata: ${JSON.stringify(capabilitiesPayload)}\n\n`)
+  res.write(`event: capabilities\ndata: ${JSON.stringify(capabilitiesPayload)}\n\n`);
+
+  // 3) heartbeat (only after capabilities)
+  const interval = setInterval(() => {
+    res.write(`event: ping\ndata: {}\n\n`);
+  }, 15000);
+
+  // Clean up on client disconnect
+  req.on("close", () => {
+    clearInterval(interval);
+  });
+});
+
+/**
+ * Minimal JSON-RPC v2 /mcp endpoint
+ *
+ * Supports:
+ *  - initialize -> returns protocolVersion, serverInfo, capabilities
+ *  - tools/list  -> returns tools (object form)
+ *  - tools/call  -> calls a tool by name with args { name, args }
+ *
+ * This lets you use either transport: SSE (Developer Mode) or HTTP JSON-RPC (/mcp)
+ */
+app.post("/mcp", async (req, res) => {
+  const { jsonrpc, method, params, id } = req.body ?? {};
+
+  function rpcResult(result: unknown) {
+    return res.json({ jsonrpc: "2.0", id: id ?? null, result });
+  }
+
+  function rpcError(code: number, message: string, data?: unknown) {
+    return res.json({
+      jsonrpc: "2.0",
+      id: id ?? null,
+      error: { code, message, data },
+    });
+  }
+
+  try {
+    if (method === "initialize") {
+      return rpcResult({
+        protocolVersion: manifest.protocolVersion,
+        serverInfo: { name: manifest.name, version: manifest.version },
+        capabilities: { tools: capabilitiesTools },
+      });
+    }
+
+    if (method === "tools/list") {
+      // return tools mapping (name => descriptor)
+      return rpcResult({ tools: capabilitiesTools });
+    }
+
+    if (method === "tools/call") {
+      // Expect params: { name: string, args?: Record<string, unknown> }
+      const { name, args } = params ?? {};
+      if (!name || typeof name !== "string") {
+        return rpcError(-32602, "Invalid params: missing tool name");
+      }
+
+      const tool = tools.find((t) => t.name === name);
+      if (!tool) {
+        return rpcError(-32601, `Tool not found: ${name}`);
+      }
+
+      // validate/run the tool. Tools are expected to return an object with content / structuredContent / _meta, etc.
+      try {
+        const result = await tool.run(args ?? {});
+        // normalize result
+        return rpcResult(result ?? { content: [] });
+      } catch (err: any) {
+        // Tool runtime error -> surface as application error
+        return rpcError(-32000, "Tool execution error", {
+          message: err?.message ?? String(err),
+        });
+      }
+    }
+
+    // Unknown method
+    return rpcError(-32601, `Method not found: ${String(method)}`);
+  } catch (err: any) {
+    return rpcError(-32603, "Internal error", { message: err?.message ?? String(err) });
+  }
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`FairCher MCP listening on ${PORT}`);
+});
