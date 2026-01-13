@@ -1,63 +1,56 @@
-import { getAdActivity } from "../services/adActivity";
 import { McpTool } from "./index";
+import { serpGoogleSearch } from "../services/serpapi";
 
 /**
- * Inline JSON Schema
- * Domain-first, evidence-only.
+ * MCP Tool: Google Search via SerpAPI
  */
-const schema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    domain: {
-      type: "string",
-      description: "Company domain to analyze advertising activity for",
+export const googleSearchTool: McpTool = {
+  name: "web.google_search",
+  description: "Run a Google search query and return organic search results.",
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      query: {
+        type: "string",
+        description: "Search query to run on Google",
+      },
+      num_results: {
+        type: "number",
+        description: "Maximum number of organic results to return",
+        default: 10,
+      },
     },
-    period: {
-      type: "string",
-      enum: ["recent", "last_30_days", "last_90_days"],
-      description:
-        "Time period over which advertising activity should be evaluated",
-    },
+    required: ["query"],
   },
-  required: ["domain"],
-} as const;
-
-export const getAdActivityTool: McpTool = {
-  name: "faircher.get_ad_activity",
-  description:
-    "Retrieve evidence-backed advertising activity observed for a business domain.",
-  inputSchema: schema,
 
   async run(args) {
-    const domain =
-      typeof args.domain === "string" ? args.domain.trim().toLowerCase() : "";
+    const query =
+      typeof args.query === "string" ? args.query.trim() : "";
 
-    if (!domain) {
-      throw new Error("Missing required parameter: domain");
+    if (!query) {
+      throw new Error("Missing required parameter: query");
     }
 
-    const period =
-      args.period === "recent" ||
-      args.period === "last_30_days" ||
-      args.period === "last_90_days"
-        ? args.period
-        : undefined;
+    const numResults =
+      typeof args.num_results === "number" && args.num_results > 0
+        ? args.num_results
+        : 10;
 
-    const data = await getAdActivity({
-      domain,
-      period,
+    const results = await serpGoogleSearch({
+      query,
+      numResults,
     });
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify(data, null, 2),
+          text: JSON.stringify(results, null, 2),
         },
       ],
     };
   },
 };
 
-export default getAdActivityTool;
+export default googleSearchTool;
