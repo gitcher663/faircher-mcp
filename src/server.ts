@@ -81,21 +81,4 @@ app.get("/sse", (req, res) => {
 
   // 2) capabilities — advertise tools (object form)
   const capabilitiesPayload = { tools: capabilitiesTools };
-  res.write(`event: capabilities\ndata: ${JSON.stringify(capabilitiesPayload)}\n\n`);
-
-  // 3) heartbeat (only after capabilities)
-  const interval = setInterval(() => {
-    res.write(`event: ping\ndata: {}\n\n`);
-  }, 15000);
-
-  // Clean up on client disconnect
-  req.on("close", () => {
-    clearInterval(interval);
-  });
-});
-
-/**
- * Minimal JSON-RPC v2 /mcp endpoint
- *
- * Supports:
- *  - initialize -> returns protocolVersion, serverI*
+  res.write(`event: capabilities\ndata: ${JSON.stringify(capabilitiesPayload)}\n\n`)
