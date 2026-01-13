@@ -5,23 +5,23 @@ import { McpTool } from "./index";
  * Inline JSON Schema
  * Domain-first, evidence-only.
  */
-const schema: Record<string, unknown> = {
+const schema = {
   type: "object",
   additionalProperties: false,
   properties: {
     domain: {
       type: "string",
-      description: "Company domain to analyze advertising activity for"
+      description: "Company domain to analyze advertising activity for",
     },
     period: {
       type: "string",
       enum: ["recent", "last_30_days", "last_90_days"],
       description:
-        "Time period over which advertising activity should be evaluated"
-    }
+        "Time period over which advertising activity should be evaluated",
+    },
   },
-  required: ["domain"]
-};
+  required: ["domain"],
+} as const;
 
 export const getAdActivityTool: McpTool = {
   name: "faircher.get_ad_activity",
@@ -31,7 +31,7 @@ export const getAdActivityTool: McpTool = {
 
   async run(args) {
     const domain =
-      typeof args.domain === "string" ? args.domain.trim() : "";
+      typeof args.domain === "string" ? args.domain.trim().toLowerCase() : "";
 
     if (!domain) {
       throw new Error("Missing required parameter: domain");
@@ -46,18 +46,18 @@ export const getAdActivityTool: McpTool = {
 
     const data = await getAdActivity({
       domain,
-      period
+      period,
     });
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify(data, null, 2)
-        }
-      ]
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
     };
-  }
+  },
 };
 
 export default getAdActivityTool;
