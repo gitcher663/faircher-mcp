@@ -1,110 +1,80 @@
-import { createServer } from "http";
-import { tools } from "../tools";
+import asyncio
+from aiohttp import web
 
-/**
- * BUILD VERIFICATION LOG
- * If you do not see this in Railway logs,
- * the deployed code is NOT this file.
- */
-console.log("SERVER CODE VERSION:", "SSE_MCP_SERVER_V3");
+# -----------------------------
+# MCP MANIFEST
+# -----------------------------
+MCP_MANIFEST = {
+    "name": "FairCher MCP",
+    "description": "MCP server for the FairCher ChatGPT app",
+    "version": "1.0.0",
+    "protocolVersion": "2024-11-05",
+    "transport": {
+        "type": "sse",
+        "endpoint": "/sse"
+    },
+    "tools": []
+}
 
-const PORT = Number(process.env.PORT || 8080);
+# -----------------------------
+# ROUTES
+# -----------------------------
 
-createServer((req, res) => {
-  const { method, url } = req;
+async def mcp_manifest(request: web.Request):
+    return web.json_response(MCP_MANIFEST)
 
-  // ===============================
-  // 0. HEALTH CHECK (INFRA ONLY)
-  // ===============================
-  if (method === "GET" && url === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok" }));
-    return;
-  }
+async def health(request: web.Request):
+    return web.json_response({"status": "ok"})
 
-  // ===============================
-  // 1. SSE STREAM (SERVER → CLIENT)
-  // ===============================
-  if (method === "GET" && url === "/sse") {
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-    });
+async def sse(request: web.Request):
+    response = web.StreamResponse(
+        status=200,
+        headers={
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
-    // ---- MCP INITIALIZE EVENT ----
-    res.write(
-      `event: message\n` +
-        `data: ${JSON.stringify({
-          jsonrpc: "2.0",
-          method: "initialize",
-          result: {
-            protocolVersion: "2024-11-05",
-            capabilities: {
-              tools: {
-                list: true,
-                call: true,
-              },
-            },
-          },
-        })}\n\n`
-    );
+    await response.prepare(request)
 
-    // ---- KEEP-ALIVE PING (CRITICAL) ----
-    const ping = setInterval(() => {
-      res.write(`event: ping\ndata: {}\n\n`);
-    }, 15000);
+    # MCP-ready event
+    await response.write(
+        b"event: ready\n"
+        b"data: {\"status\":\"connected\"}\n\n"
+    )
 
-    req.on("close", () => {
-      clearInterval(ping);
-      console.log("SSE connection closed");
-    });
+    try:
+        while True:
+            await asyncio.sleep(15)
+            await response.write(
+                b"event: ping\n"
+                b"data: {}\n\n"
+            )
+    except asyncio.CancelledError:
+        pass
 
-    return;
-  }
+    return response
 
-  // =================================
-  // 2. MCP REQUESTS (CLIENT → SERVER)
-  // =================================
-  if (method === "POST" && url === "/sse") {
-    let body = "";
+# -----------------------------
+# APP SETUP
+# -----------------------------
 
-    req.on("data", chunk => {
-      body += chunk;
-    });
+app = web.Application()
 
-    req.on("end", () => {
-      console.log("MCP POST RECEIVED:", body);
+# MCP discovery (MANDATORY)
+app.router.add_get("/.well-known/mcp.json", mcp_manifest)
 
-      /**
-       * ACK is required so MCP clients do not error.
-       * Tool dispatch will be wired later.
-       */
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end("{}");
-    });
+# Transport + ops
+app.router.add_get("/sse", sse)
+app.router.add_get("/health", health)
 
-    return;
-  }
-
-  // ===============================
-  // 3. MCP JSON-RPC GUARD (OPTIONAL)
-  // ===============================
-  if (url === "/mcp") {
-    res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        error: "This MCP server uses SSE transport at /sse",
-      })
-    );
-    return;
-  }
-
-  // ===============================
-  // 4. EVERYTHING ELSE → 404
-  // ===============================
-  res.writeHead(404);
-  res.end();
-}).listen(PORT, "0.0.0.0", () => {
-  console.log(`MCP SSE server listening on port ${PORT}`);
-});
+# -----------------------------
+# BOOT
+# -----------------------------
+if __name__ == "__main__":
+    web.run_app(
+        app,
+        host="0.0.0.0",  # REQUIRED for Railway public + private networking
+        port=8080
+    )
