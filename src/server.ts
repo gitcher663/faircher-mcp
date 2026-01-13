@@ -6,15 +6,26 @@ import { tools } from "../tools";
  * If you do not see this in Railway logs,
  * the deployed code is NOT this file.
  */
-console.log("SERVER CODE VERSION:", "SSE_MCP_SERVER_V2");
+console.log("SERVER CODE VERSION:", "SSE_MCP_SERVER_V3");
 
 const PORT = Number(process.env.PORT || 8080);
 
 createServer((req, res) => {
+  const { method, url } = req;
+
+  // ===============================
+  // 0. HEALTH CHECK (INFRA ONLY)
+  // ===============================
+  if (method === "GET" && url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+
   // ===============================
   // 1. SSE STREAM (SERVER → CLIENT)
   // ===============================
-  if (req.method === "GET" && req.url === "/sse") {
+  if (method === "GET" && url === "/sse") {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -55,7 +66,7 @@ createServer((req, res) => {
   // =================================
   // 2. MCP REQUESTS (CLIENT → SERVER)
   // =================================
-  if (req.method === "POST" && req.url === "/sse") {
+  if (method === "POST" && url === "/sse") {
     let body = "";
 
     req.on("data", chunk => {
@@ -66,9 +77,8 @@ createServer((req, res) => {
       console.log("MCP POST RECEIVED:", body);
 
       /**
-       * For now, we just ACK the request.
-       * This is REQUIRED so ChatGPT does not error.
-       * Tool handling will be wired in the next step.
+       * ACK is required so MCP clients do not error.
+       * Tool dispatch will be wired later.
        */
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end("{}");
@@ -78,7 +88,20 @@ createServer((req, res) => {
   }
 
   // ===============================
-  // 3. EVERYTHING ELSE → 404
+  // 3. MCP JSON-RPC GUARD (OPTIONAL)
+  // ===============================
+  if (url === "/mcp") {
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        error: "This MCP server uses SSE transport at /sse",
+      })
+    );
+    return;
+  }
+
+  // ===============================
+  // 4. EVERYTHING ELSE → 404
   // ===============================
   res.writeHead(404);
   res.end();
