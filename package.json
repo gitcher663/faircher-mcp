@@ -8,14 +8,11 @@
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts"
   },
-  "keywords": [
-    "mcp",
-    "modelcontextprotocol",
-    "faircher"
-  ],
+  "keywords": ["mcp", "modelcontextprotocol", "faircher"],
   "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
