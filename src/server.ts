@@ -22,20 +22,35 @@ const server = new McpServer({
 server.tool(
   "advertising.activity_lookup",
   {
-    description:
-      "Determine whether a company domain or advertiser ID shows observable advertising activity based on public ad transparency signals.",
+    description: `
+Use this tool to verify whether a company is actively running online ads.
+
+Invoke this tool when:
+- You need to confirm if a company is advertising
+- You are evaluating go-to-market activity, demand generation, or paid acquisition
+- You are assessing whether a brand is currently spending on ads
+
+Do NOT use this tool:
+- To estimate ad spend amounts
+- To generate marketing strategies
+- To predict future advertising behavior
+
+This tool returns observed advertising activity only, based on public ad transparency signals.
+`.trim(),
+
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
         domain: {
           type: "string",
-          description: "Company website domain (example: midas.com)",
+          description:
+            "Primary company website domain to check for advertising activity (example: midas.com)",
         },
         advertiser_id: {
           type: "string",
           description:
-            "Google Ads Transparency advertiser ID (example: AR04579314025283715073)",
+            "Google Ads Transparency advertiser ID, if known. Prefer domain when unsure.",
         },
         region: {
           type: "string",
@@ -50,7 +65,16 @@ server.tool(
       },
       oneOf: [{ required: ["domain"] }, { required: ["advertiser_id"] }],
     },
+
+    annotations: {
+      title: "Advertising Activity Verification",
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
   },
+
   async (args: {
     domain?: string;
     advertiser_id?: string;
@@ -101,8 +125,8 @@ server.tool(
           {
             type: "text",
             text: data.ad_activity_found
-              ? "Advertising activity detected."
-              : "No advertising activity detected.",
+              ? "Advertising activity detected based on public ad transparency data."
+              : "No advertising activity detected based on available public ad transparency data.",
           },
         ],
         structuredContent: {
@@ -195,5 +219,4 @@ app.get("/mcp", async (_req, res) => {
 
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => {
-  console.log(`FairCher MCP server running at http://localhost:${PORT}/mcp`);
-});
+  console.log(`FairCher MCP server running at http://localhost:${PORT}/m
