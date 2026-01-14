@@ -1,23 +1,21 @@
 import express from "express";
-import cors from "cors";
 import { randomUUID } from "crypto";
 
 const app = express();
-const PORT = Number(process.env.PORT) || 8080;
-
-app.use(cors());
 app.use(express.json());
 
-/* -----------------------------------
-   Health check (must not 404)
------------------------------------ */
+const PORT = Number(process.env.PORT) || 8080;
+
+/**
+ * Health check (Railway / uptime)
+ */
 app.get("/", (_req, res) => {
   res.json({ service: "faircher-mcp", status: "ok" });
 });
 
-/* -----------------------------------
-   MCP discovery
------------------------------------ */
+/**
+ * MCP discovery
+ */
 app.get("/.well-known/mcp.json", (_req, res) => {
   res.json({
     protocolVersion: "2024-11-05",
@@ -27,16 +25,16 @@ app.get("/.well-known/mcp.json", (_req, res) => {
     },
     transports: [
       {
-        type: "streamable_http",
+        type: "http",
         endpoint: "/sse",
       },
     ],
   });
 });
 
-/* -----------------------------------
-   SSE endpoint (THIS IS WHAT CHATGPT USES)
------------------------------------ */
+/**
+ * STREAMABLE HTTP ENTRYPOINT (REQUIRED FOR CHATGPT)
+ */
 app.get("/sse", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -44,14 +42,12 @@ app.get("/sse", (req, res) => {
 
   const sessionId = randomUUID();
 
-  // Initial MCP handshake event
+  // Initial hello event
   res.write(
     `event: message\ndata: ${JSON.stringify({
       jsonrpc: "2.0",
-      method: "notifications/connected",
-      params: {
-        sessionId,
-      },
+      method: "notifications/ready",
+      params: { sessionId },
     })}\n\n`
   );
 
@@ -60,13 +56,13 @@ app.get("/sse", (req, res) => {
   });
 });
 
-/* -----------------------------------
-   MCP JSON-RPC endpoint
------------------------------------ */
+/**
+ * MCP JSON-RPC over HTTP POST
+ * ChatGPT will POST here after SSE is established
+ */
 app.post("/mcp", (req, res) => {
   const { id, method } = req.body ?? {};
 
-  /* ---- initialize ---- */
   if (method === "initialize") {
     return res.json({
       jsonrpc: "2.0",
@@ -86,7 +82,6 @@ app.post("/mcp", (req, res) => {
     });
   }
 
-  /* ---- tools/list ---- */
   if (method === "tools/list") {
     return res.json({
       jsonrpc: "2.0",
@@ -120,11 +115,8 @@ app.post("/mcp", (req, res) => {
     });
   }
 
-  /* ---- tools/call ---- */
   if (method === "tools/call") {
-    const { name, arguments: args } = req.body.params ?? {};
-
-    if (name === "advertising.activity_lookup") {
+    if (req.body.params?.name === "advertising.activity_lookup") {
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -132,30 +124,14 @@ app.post("/mcp", (req, res) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  domain: args.domain,
-                  timeframe: args.timeframe ?? "recent",
-                  signals: ["search_ads_detected", "brand_keywords_present"],
-                  confidence: "medium",
-                },
-                null,
-                2
-              ),
+              text: "Advertising activity signals detected (stub response).",
             },
           ],
         },
       });
     }
-
-    return res.json({
-      jsonrpc: "2.0",
-      id,
-      error: { code: -32602, message: "Unknown tool" },
-    });
   }
 
-  /* ---- fallback ---- */
   return res.json({
     jsonrpc: "2.0",
     id,
@@ -166,9 +142,6 @@ app.post("/mcp", (req, res) => {
   });
 });
 
-/* -----------------------------------
-   Start server
------------------------------------ */
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Faircher MCP running on ${PORT}`);
+  console.log(`Faircher MCP listening on ${PORT}`);
 });
