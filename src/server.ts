@@ -1,8 +1,6 @@
 import express from "express";
-import cors from "cors";
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
 const PORT = Number(process.env.PORT) || 8080;
@@ -40,7 +38,7 @@ app.get("/.well-known/mcp.json", (_req, res) => {
  * MCP JSON-RPC endpoint
  */
 app.post("/mcp", (req, res) => {
-  const { id, method, params } = req.body ?? {};
+  const { id, method } = req.body ?? {};
 
   if (method === "initialize") {
     return res.json({
@@ -64,7 +62,7 @@ app.post("/mcp", (req, res) => {
       jsonrpc: "2.0",
       id,
       result: {
-        tools: [], // add tools later
+        tools: [],
       },
     });
   }
@@ -72,7 +70,10 @@ app.post("/mcp", (req, res) => {
   return res.json({
     jsonrpc: "2.0",
     id,
-    error: { code: -32601, message: `Method not found: ${method}` },
+    error: {
+      code: -32601,
+      message: `Method not found: ${method}`,
+    },
   });
 });
 
