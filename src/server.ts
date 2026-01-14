@@ -1,158 +1,148 @@
-import express from "express";
-import { randomUUID } from "crypto";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
-const app = express();
-app.use(express.json());
+// If Node < 18, uncomment:
+// import fetch from "node-fetch";
 
-const PORT = Number(process.env.PORT) || 8080;
+const SERPAPI_ENDPOINT = "https://serpapi.com/search.json";
+const SERPAPI_KEY = process.env.SERPAPI_API_KEY;
 
-/**
- * Health check (must not 404)
- */
-app.get("/", (_req, res) => {
-  res.json({ service: "faircher-mcp", status: "ok" });
+if (!SERPAPI_KEY) {
+  throw new Error("SERPAPI_API_KEY is not set");
+}
+
+const server = new McpServer({
+  name: "faircher-mcp",
+  version: "1.0.0",
 });
 
-/**
- * MCP discovery document
- */
-app.get("/.well-known/mcp.json", (_req, res) => {
-  res.json({
-    protocolVersion: "2024-11-05",
-    serverInfo: {
-      name: "faircher-mcp",
-      version: "1.0.0",
-    },
-    transports: [
-      {
-        type: "http",
-        endpoint: "/sse",
-      },
-    ],
-  });
-});
-
-/**
- * STREAMABLE HTTP ENDPOINT (REQUIRED)
- * ChatGPT opens this first
- */
-app.get("/sse", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  const sessionId = randomUUID();
-
-  // Initial MCP-ready notification
-  res.write(
-    `event: message\ndata: ${JSON.stringify({
-      jsonrpc: "2.0",
-      method: "notifications/ready",
-      params: { sessionId },
-    })}\n\n`
-  );
-
-  // Keepalive ping every 15s
-  const interval = setInterval(() => {
-    res.write(`event: ping\ndata: {}\n\n`);
-  }, 15000);
-
-  req.on("close", () => {
-    clearInterval(interval);
-    res.end();
-  });
-});
-
-/**
- * JSON-RPC endpoint
- * ChatGPT POSTs here after SSE is established
- */
-app.post("/mcp", (req, res) => {
-  const { id, method, params } = req.body ?? {};
-
-  if (method === "initialize") {
-    return res.json({
-      jsonrpc: "2.0",
-      id,
-      result: {
-        protocolVersion: "2024-11-05",
-        serverInfo: {
-          name: "faircher-mcp",
-          version: "1.0.0",
-        },
-        capabilities: {
-          tools: {
-            listChanged: false,
-          },
-        },
-      },
-    });
+/* -----------------------------
+   Helper: timeframe handling
+-------------------------------- */
+function timeframeToMs(tf: "recent" | "30d" | "90d") {
+  switch (tf) {
+    case "30d":
+      return 30 * 24 * 60 * 60 * 1000;
+    case "90d":
+      return 90 * 24 * 60 * 60 * 1000;
+    default:
+      return 14 * 24 * 60 * 60 * 1000; // recent
   }
+}
 
-  if (method === "tools/list") {
-    return res.json({
-      jsonrpc: "2.0",
-      id,
-      result: {
-        tools: [
+/* -----------------------------
+   Tool registration
+-------------------------------- */
+server.registerTool(
+  "advertising.activity_lookup",
+  {
+    title: "Check Advertising Activity",
+    description:
+      "Use this when the user wants to know whether a company or domain has shown recent advertising activity based on live Google Ads Transparency Center data.",
+    inputSchema: z.object({
+      domain: z
+        .string()
+        .describe("Root domain to check (e.g. 'midas.com')."),
+      timeframe: z
+        .enum(["recent", "30d", "90d"])
+        .optional()
+        .default("recent")
+        .describe("Lookback window for ad activity."),
+    }),
+    annotations: {
+      readOnlyHint: true,
+      openWorldHint: true,
+      destructiveHint: false,
+    },
+  },
+  async ({ domain, timeframe }) => {
+    /* -----------------------------
+       1. Call SerpApi
+    -------------------------------- */
+    const url = new URL(SERPAPI_ENDPOINT);
+    url.searchParams.set("engine", "google_ads_transparency_center");
+    url.searchParams.set("text", domain);
+    url.searchParams.set("api_key", SERPAPI_KEY!);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error(`SerpApi request failed: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const creatives = json.ad_creatives ?? [];
+
+    /* -----------------------------
+       2. Recency filtering
+    -------------------------------- */
+    const now = Date.now();
+    const windowMs = timeframeToMs(timeframe);
+    const recent = creatives.filter((c: any) => {
+      if (!c.last_shown) return false;
+      return now - c.last_shown * 1000 <= windowMs;
+    });
+
+    /* -----------------------------
+       3. No recent activity
+    -------------------------------- */
+    if (recent.length === 0) {
+      return {
+        structuredContent: {
+          active: false,
+          confidence: "low",
+          recent_creatives: 0,
+          formats: [],
+          advertisers: [],
+          source: "google_ads_transparency_center",
+        },
+        content: [
           {
-            name: "advertising.activity_lookup",
-            title: "Advertising Activity Lookup",
-            description:
-              "Use this when you want to assess whether a company or domain shows recent advertising or media-buying activity based on observable signals.",
-            inputSchema: {
-              type: "object",
-              properties: {
-                domain: {
-                  type: "string",
-                  description: "Company website domain (example.com)",
-                },
-                timeframe: {
-                  type: "string",
-                  enum: ["recent", "30d", "90d"],
-                  default: "recent",
-                },
-              },
-              required: ["domain"],
-            },
-            annotations: {
-              readOnlyHint: true,
-              openWorldHint: true,
-            },
+            type: "text",
+            text: `No recent Google Ads activity detected for ${domain}.`,
           },
         ],
-      },
-    });
-  }
-
-  if (method === "tools/call") {
-    if (params?.name === "advertising.activity_lookup") {
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          content: [
-            {
-              type: "text",
-              text:
-                "Advertising activity signals detected (stub response).",
-            },
-          ],
-        },
-      });
+      };
     }
+
+    /* -----------------------------
+       4. Aggregate signals
+    -------------------------------- */
+    const latestSeen = Math.max(...recent.map((c: any) => c.last_shown));
+    const formats = [
+      ...new Set(recent.map((c: any) => c.format).filter(Boolean)),
+    ];
+    const advertisers = [
+      ...new Set(recent.map((c: any) => c.advertiser).filter(Boolean)),
+    ];
+
+    let confidence: "low" | "medium" | "high" = "medium";
+    if (recent.length >= 10 && formats.length >= 2) confidence = "high";
+    if (recent.length < 3) confidence = "low";
+
+    /* -----------------------------
+       5. Return payload
+    -------------------------------- */
+    return {
+      structuredContent: {
+        active: true,
+        confidence,
+        latest_seen: new Date(latestSeen * 1000).toISOString(),
+        recent_creatives: recent.length,
+        formats,
+        advertisers,
+        source: "google_ads_transparency_center",
+      },
+      content: [
+        {
+          type: "text",
+          text: `Advertising activity detected for ${domain}.`,
+        },
+      ],
+    };
   }
+);
 
-  return res.json({
-    jsonrpc: "2.0",
-    id,
-    error: {
-      code: -32601,
-      message: `Method not found: ${method}`,
-    },
-  });
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Faircher MCP listening on ${PORT}`);
-});
+/* -----------------------------
+   Start server
+-------------------------------- */
+server.start();
