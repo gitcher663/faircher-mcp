@@ -1,7 +1,6 @@
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import fetch from "node-fetch";
 
 /* -------------------------------------------------------
    App + MCP Server Initialization
@@ -17,13 +16,11 @@ const server = new McpServer({
 
 /* -------------------------------------------------------
    TOOL: advertising.activity_lookup
-   (Exact contract from your implementation)
 ------------------------------------------------------- */
 
 server.tool(
   "advertising.activity_lookup",
   {
-    title: "Advertising Activity Lookup",
     description:
       "Determine whether a company domain or advertiser ID shows observable advertising activity based on public ad transparency signals.",
     inputSchema: {
@@ -130,7 +127,7 @@ server.tool(
 );
 
 /* -------------------------------------------------------
-   SSE Transport (Required)
+   SSE Transport
 ------------------------------------------------------- */
 
 app.get("/mcp", async (req, res) => {
