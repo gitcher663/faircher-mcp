@@ -7,14 +7,14 @@ app.use(express.json());
 const PORT = Number(process.env.PORT) || 8080;
 
 /**
- * Health check (Railway / uptime)
+ * Health check (must not 404)
  */
 app.get("/", (_req, res) => {
   res.json({ service: "faircher-mcp", status: "ok" });
 });
 
 /**
- * MCP discovery
+ * MCP discovery document
  */
 app.get("/.well-known/mcp.json", (_req, res) => {
   res.json({
@@ -33,7 +33,8 @@ app.get("/.well-known/mcp.json", (_req, res) => {
 });
 
 /**
- * STREAMABLE HTTP ENTRYPOINT (REQUIRED FOR CHATGPT)
+ * STREAMABLE HTTP ENDPOINT (REQUIRED)
+ * ChatGPT opens this first
  */
 app.get("/sse", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -42,7 +43,7 @@ app.get("/sse", (req, res) => {
 
   const sessionId = randomUUID();
 
-  // Initial hello event
+  // Initial MCP-ready notification
   res.write(
     `event: message\ndata: ${JSON.stringify({
       jsonrpc: "2.0",
@@ -51,17 +52,23 @@ app.get("/sse", (req, res) => {
     })}\n\n`
   );
 
+  // Keepalive ping every 15s
+  const interval = setInterval(() => {
+    res.write(`event: ping\ndata: {}\n\n`);
+  }, 15000);
+
   req.on("close", () => {
+    clearInterval(interval);
     res.end();
   });
 });
 
 /**
- * MCP JSON-RPC over HTTP POST
- * ChatGPT will POST here after SSE is established
+ * JSON-RPC endpoint
+ * ChatGPT POSTs here after SSE is established
  */
 app.post("/mcp", (req, res) => {
-  const { id, method } = req.body ?? {};
+  const { id, method, params } = req.body ?? {};
 
   if (method === "initialize") {
     return res.json({
@@ -96,7 +103,10 @@ app.post("/mcp", (req, res) => {
             inputSchema: {
               type: "object",
               properties: {
-                domain: { type: "string" },
+                domain: {
+                  type: "string",
+                  description: "Company website domain (example.com)",
+                },
                 timeframe: {
                   type: "string",
                   enum: ["recent", "30d", "90d"],
@@ -116,7 +126,7 @@ app.post("/mcp", (req, res) => {
   }
 
   if (method === "tools/call") {
-    if (req.body.params?.name === "advertising.activity_lookup") {
+    if (params?.name === "advertising.activity_lookup") {
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -124,7 +134,8 @@ app.post("/mcp", (req, res) => {
           content: [
             {
               type: "text",
-              text: "Advertising activity signals detected (stub response).",
+              text:
+                "Advertising activity signals detected (stub response).",
             },
           ],
         },
