@@ -1,5 +1,4 @@
-import fetch from "node-fetch";
-
+// no import needed — fetch is global in Node 20
 const SERP_API_KEY = process.env.SERPAPI_KEY;
 
 export async function serpGoogleSearch({
