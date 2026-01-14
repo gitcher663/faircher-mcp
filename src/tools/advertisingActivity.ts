@@ -1,7 +1,3 @@
-// src/tools/advertisingActivity.ts
-
-import { getWebAdvertisingSignals } from "../adapters/webSignals";
-
 /**
  * MCP Tool: advertising.activity_lookup
  *
@@ -44,10 +40,23 @@ export const advertisingActivityTool = {
 
   async run(args: { domain: string; timeframe?: string }) {
     try {
-      const result = await getWebAdvertisingSignals({
+      /**
+       * TEMPORARY stubbed implementation.
+       * This will later call an adapter (e.g. SerpApi),
+       * but for MVP it returns structured mock signals.
+       */
+      const result = {
         domain: args.domain,
         timeframe: args.timeframe ?? "recent",
-      });
+        signals: {
+          paid_search_detected: true,
+          display_ads_detected: false,
+          job_postings_related_to_marketing: true,
+          confidence: "medium",
+        },
+        summary:
+          "Public signals suggest recent advertising or marketing activity.",
+      };
 
       return {
         content: [
