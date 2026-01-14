@@ -1,46 +1,72 @@
-# faircher-mcp
+# FairCher MCP Server
 
-FairCher MCP server for read-only advertiser discovery and research in ChatGPT.
+FairCher is a Model Context Protocol (MCP) server that exposes a **read-only advertising activity lookup tool** for use in ChatGPT.
 
-The server enforces a confirmation-gated workflow backed by Supabase:
+The server allows the ChatGPT model to determine whether a company domain or advertiser ID shows **observable advertising activity**, based on public ad transparency signals retrieved via a Supabase Edge Function.
 
-- `faircher.entity_lookup` resolves business input through a Supabase Edge Function (with a domain fast-path) and persists the unconfirmed entity record.
-- The returned entity summary must be presented to the user for explicit confirmation via `faircher.confirm_entity`.
-- Advertising classification (`faircher.resolve_advertising_status`) and activity retrieval (`faircher.get_ad_activity`) are blocked until the entity is confirmed in Supabase.
+---
 
-## Node.js MCP server over HTTP
+## What This Server Does
 
-This repository hosts a production-ready Node.js MCP server that communicates over HTTP rather than stdio. The server is compatible with ChatGPT MCP URL registration and exposes its JSON-RPC endpoint at `POST /mcp`.
+- Exposes a **model-controlled MCP tool**
+- Performs **read-only advertiser activity discovery**
+- Supports lookup by:
+  - Company domain, or
+  - Google Ads Transparency advertiser ID
+- Returns both:
+  - Human-readable summaries
+  - Structured data for model reasoning
 
-- Binds to `process.env.PORT` on `0.0.0.0` for Railway deployments.
-- Implements the MCP handshake (`initialize`, `tools/list`, and `tools/call`).
-- Provides an example tool: `faircher.get_ad_activity`.
+The server does **not**:
+- Orchestrate chat or prompts
+- Implement agent logic
+- Maintain conversational state
+- Require confirmation steps
+- Expose implementation details to the model
 
-### Setup
+---
+
+## Exposed Tool
+
+### `advertising.activity_lookup`
+
+Determines whether a company or advertiser shows observable advertising activity.
+
+**Input (JSON Schema)**
+
+- `domain` (string, optional)  
+  Company website domain (e.g. `midas.com`)
+- `advertiser_id` (string, optional)  
+  Google Ads Transparency advertiser ID (e.g. `AR04579314025283715073`)
+- `region` (string, optional, default: `2840`)  
+  Region code (2840 = United States)
+- `limit` (number, optional, default: `100`)  
+  Maximum number of ads to return
+
+Either `domain` **or** `advertiser_id` is required.
+
+**Behavior**
+- Read-only
+- Idempotent
+- Model-controlled
+- Safe for autonomous invocation
+
+---
+
+## Transport & Protocol
+
+- MCP over **Server-Sent Events (SSE)**
+- Endpoint: `GET /mcp`
+- Content-Type: `text/event-stream`
+- Compatible with ChatGPT MCP URL registration
+
+This server does **not** accept raw JSON-RPC POST requests.
+
+---
+
+## Setup
+
+### Install dependencies
 
 ```bash
 npm install
-```
-
-### Run in development
-
-```bash
-npm run dev
-```
-
-### Build and run
-
-```bash
-npm run build
-npm start
-```
-
-### Verify with curl
-
-Use the following command to confirm the MCP server responds to initialization:
-
-```bash
-curl -X POST http://localhost:$PORT/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
-```
