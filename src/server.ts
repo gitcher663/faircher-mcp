@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 
@@ -56,7 +57,13 @@ server.tool(
     region?: string;
     limit?: number;
   }) => {
+    const requestId = crypto.randomUUID();
+    const start = Date.now();
+
     try {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(
         "https://emmuyndfyszbfivqhvbl.supabase.co/functions/v1/get_ad_activity",
         {
@@ -70,16 +77,24 @@ server.tool(
             region: args.region ?? "2840",
             limit: args.limit ?? 100,
           }),
+          signal: controller.signal,
         }
       );
 
+      const durationMs = Date.now() - start;
+
       if (!response.ok) {
-        throw new Error(
-          `Supabase Edge Function error (${response.status})`
+        console.error(
+          `[${requestId}] upstream error ${response.status} (${durationMs}ms)`
         );
+        throw new Error(`Upstream error (${response.status})`);
       }
 
       const data = await response.json();
+
+      console.log(
+        `[${requestId}] advertising.activity_lookup ok (${durationMs}ms)`
+      );
 
       return {
         content: [
@@ -111,26 +126,65 @@ server.tool(
         },
       };
     } catch (error: any) {
+      const durationMs = Date.now() - start;
+
+      console.error(
+        `[${requestId}] advertising.activity_lookup failed (${durationMs}ms):`,
+        error?.message
+      );
+
       return {
         isError: true,
         content: [
           {
             type: "text",
-            text: `Unable to retrieve advertising activity: ${
-              error?.message ?? "Unknown error"
-            }`,
+            text: `Unable to retrieve advertising activity (request_id=${requestId})`,
           },
         ],
+        structuredContent: {
+          error_type: "UPSTREAM_FAILURE",
+          retryable: true,
+          request_id: requestId,
+        },
       };
     }
   }
 );
 
 /* -------------------------------------------------------
+   Health Check
+------------------------------------------------------- */
+
+app.get("/health", async (_req, res) => {
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 2000);
+
+    await fetch(
+      "https://emmuyndfyszbfivqhvbl.supabase.co/functions/v1/get_ad_activity",
+      {
+        method: "OPTIONS",
+        signal: controller.signal,
+      }
+    );
+
+    res.status(200).json({
+      status: "ok",
+      upstream: "reachable",
+    });
+  } catch {
+    res.status(200).json({
+      status: "ok",
+      upstream: "unreachable",
+    });
+  }
+});
+
+/* -------------------------------------------------------
    SSE Transport
 ------------------------------------------------------- */
 
-app.get("/mcp", async (req, res) => {
+app.get("/mcp", async (_req, res) => {
   const transport = new SSEServerTransport("/mcp", res);
   await server.connect(transport);
 });
