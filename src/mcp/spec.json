@@ -1,26 +1,29 @@
 {
-  "name": "faircher",
-  "description": "Faircher is a research and intelligence platform for web, news, and advertising data.",
+  "name": "FairCher",
+  "description": "FairCher is an ad intelligence tool that provides transparency into search, display, social, streaming, and broadcast advertising.",
   "tools": [
     {
-      "name": "search",
-      "description": "Perform general web research and discovery",
+      "name": "ad_intelligence",
+      "description": "Analyze advertising activity for a brand or domain across multiple channels",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "query": {
+          "entity": {
             "type": "string",
-            "description": "Search query"
+            "description": "Brand name or domain (e.g. nike.com, Coca-Cola)"
           },
-          "source": {
-            "type": "string",
-            "enum": ["web"],
-            "default": "web"
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["search", "display", "social", "streaming", "broadcast"]
+            },
+            "description": "Advertising channels to analyze",
+            "default": ["search", "display"]
           }
         },
-        "required": ["query"]
+        "required": ["entity"]
       }
     }
   ]
 }
-
