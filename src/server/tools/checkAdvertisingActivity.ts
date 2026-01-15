@@ -2,8 +2,8 @@ import { z } from "zod";
 import { createClient } from "@modelcontextprotocol/sdk/client/index.js";
 
 /**
- * MCP client that talks to SerpApi's hosted MCP server
- * IMPORTANT: API key is embedded in the MCP URL, not headers
+ * Create an MCP client that talks to SerpApi's hosted MCP server.
+ * The API key is part of the URL per SerpApi spec.
  */
 const serpApiClient = createClient({
   type: "http",
@@ -33,14 +33,15 @@ export const checkAdvertisingActivity = [
 
   async ({ domain, region, creative_format }) => {
     /**
-     * Call SerpApi's unified MCP search tool
-     * Tool name is exposed by SerpApi MCP automatically
+     * Call SerpApi MCP unified search tool.
+     * NOTE: Tool name MUST match what SerpApi MCP exposes.
+     * If this fails, inspect with MCP Inspector and adjust.
      */
     const serpResult = await serpApiClient.callTool("search", {
       engine: "google_ads_transparency_center",
       text: domain,
-      ...(region && { region }),
-      ...(creative_format && { creative_format }),
+      ...(region ? { region } : {}),
+      ...(creative_format ? { creative_format } : {}),
     });
 
     const adCreatives = serpResult?.ad_creatives ?? [];
