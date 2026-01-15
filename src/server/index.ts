@@ -1,5 +1,4 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { HttpTransport } from "@modelcontextprotocol/sdk/server/transports/http.js";
 import { checkAdvertisingActivity } from "./tools/checkAdvertisingActivity.js";
 
 const server = new McpServer({
@@ -7,10 +6,12 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
-server.registerTool(...checkAdvertisingActivity);
+server.registerTool(
+  checkAdvertisingActivity.name,
+  checkAdvertisingActivity.definition,
+  checkAdvertisingActivity.handler
+);
 
-const transport = new HttpTransport({
-  port: Number(process.env.PORT) || 3000,
-});
-
-await server.connect(transport);
+// MCP servers DO NOT call `start()`
+// Railway will invoke the process automatically
+export default server;
