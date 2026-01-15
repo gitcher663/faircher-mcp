@@ -1,13 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerWidget } from "./resources/widget.js";
-import { searchAdsTool } from "./tools/searchAds.js";
+import { checkAdvertisingActivity } from "./tools/checkAdvertisingActivity.js";
 
-const server = new McpServer({
-  name: "faircher",
+export const server = new McpServer({
+  name: "FairCher",
   version: "1.0.0",
 });
 
-registerWidget(server);
-server.registerTool(...searchAdsTool);
-
-server.start();
+server.registerTool(...checkAdvertisingActivity);
