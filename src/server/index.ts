@@ -7,3 +7,8 @@ export const server = new McpServer({
 });
 
 server.registerTool(...checkAdvertisingActivity);
+
+server.start({
+  transport: "http",
+  port: Number(process.env.PORT) || 3000,
+});
