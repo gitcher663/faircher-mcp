@@ -2,7 +2,12 @@ import { z } from "zod";
 
 export const checkAdvertisingActivity: [
   string,
-  any,
+  {
+    title: string;
+    description: string;
+    inputSchema: z.ZodTypeAny;
+    _meta?: Record<string, unknown>;
+  },
   (args: any) => Promise<any>
 ] = [
   "check_advertising_activity",
@@ -10,10 +15,20 @@ export const checkAdvertisingActivity: [
     title: "Check advertising activity",
     description:
       "Checks Google Ads Transparency Center for advertising activity related to a domain",
-    inputSchema: {
-      domain: z.string(),
+    inputSchema: z.object({
+      domain: z.string().describe("Company domain, e.g. apple.com"),
       region: z.string().optional(),
-      creative_format: z.enum(["text", "image", "video"]).optional(),
+      creative_format: z
+        .string()
+        .optional()
+        .describe("Optional creative format: text, image, or video"),
+    }),
+    _meta: {
+      "openai/annotations": {
+        readOnlyHint: true,
+        openWorldHint: false,
+        destructiveHint: false,
+      },
     },
   },
 
@@ -30,6 +45,11 @@ export const checkAdvertisingActivity: [
     const res = await fetch(
       `https://serpapi.com/search.json?${params.toString()}`
     );
+
+    if (!res.ok) {
+      throw new Error(`SerpApi error: ${res.status}`);
+    }
+
     const data = await res.json();
 
     return {
