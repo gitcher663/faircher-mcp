@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-export const checkAdvertisingActivity = [
-  "advertising.activity_lookup",
-  {
+export const checkAdvertisingActivity = {
+  name: "advertising.activity_lookup",
+
+  definition: {
     title: "Check advertising activity",
     description:
       "Looks up advertising activity using the Google Ads Transparency Center.",
@@ -12,35 +13,34 @@ export const checkAdvertisingActivity = [
       creative_format: z.enum(["text", "image", "video"]).optional(),
     },
   },
-  async ({ domain, region, creative_format }) => {
+
+  async handler(args: {
+    domain: string;
+    region?: string;
+    creative_format?: "text" | "image" | "video";
+  }) {
     const params = new URLSearchParams({
       engine: "google_ads_transparency_center",
-      text: domain, // ← THIS IS CORRECT PER SERPAPI
+      text: args.domain,
       api_key: process.env.SERPAPI_API_KEY!,
     });
 
-    if (region) params.set("region", region);
-    if (creative_format) params.set("creative_format", creative_format);
+    if (args.region) params.set("region", args.region);
+    if (args.creative_format) {
+      params.set("creative_format", args.creative_format);
+    }
 
     const res = await fetch(
       `https://serpapi.com/search.json?${params.toString()}`
     );
 
-    if (!res.ok) {
-      throw new Error(`SerpApi request failed: ${res.status}`);
-    }
-
     const data = await res.json();
 
     return {
-      structuredContent: {
-        domain,
-        ads_found: data.ad_creatives?.length ?? 0,
-      },
       content: [
         {
-          type: "text",
-          text: `Advertising activity for ${domain}`,
+          type: "text" as const,
+          text: `Found ${data.ad_creatives?.length ?? 0} ads for ${args.domain}`,
         },
       ],
       _meta: {
@@ -49,4 +49,4 @@ export const checkAdvertisingActivity = [
       },
     };
   },
-] as const;
+};
