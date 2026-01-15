@@ -1,41 +1,21 @@
 import { z } from "zod";
 
-export const checkAdvertisingActivity: [
-  string,
-  {
-    title: string;
-    description: string;
-    inputSchema: z.ZodTypeAny;
-    _meta?: Record<string, unknown>;
-  },
-  (args: any) => Promise<any>
-] = [
-  "check_advertising_activity",
+export const checkAdvertisingActivity = [
+  "advertising.activity_lookup",
   {
     title: "Check advertising activity",
     description:
-      "Checks Google Ads Transparency Center for advertising activity related to a domain",
-    inputSchema: z.object({
-      domain: z.string().describe("Company domain, e.g. apple.com"),
+      "Looks up advertising activity using the Google Ads Transparency Center.",
+    inputSchema: {
+      domain: z.string(),
       region: z.string().optional(),
-      creative_format: z
-        .string()
-        .optional()
-        .describe("Optional creative format: text, image, or video"),
-    }),
-    _meta: {
-      "openai/annotations": {
-        readOnlyHint: true,
-        openWorldHint: false,
-        destructiveHint: false,
-      },
+      creative_format: z.enum(["text", "image", "video"]).optional(),
     },
   },
-
   async ({ domain, region, creative_format }) => {
     const params = new URLSearchParams({
       engine: "google_ads_transparency_center",
-      text: domain,
+      text: domain, // ← THIS IS CORRECT PER SERPAPI
       api_key: process.env.SERPAPI_API_KEY!,
     });
 
@@ -47,7 +27,7 @@ export const checkAdvertisingActivity: [
     );
 
     if (!res.ok) {
-      throw new Error(`SerpApi error: ${res.status}`);
+      throw new Error(`SerpApi request failed: ${res.status}`);
     }
 
     const data = await res.json();
@@ -60,7 +40,7 @@ export const checkAdvertisingActivity: [
       content: [
         {
           type: "text",
-          text: `Advertising activity found for ${domain}`,
+          text: `Advertising activity for ${domain}`,
         },
       ],
       _meta: {
@@ -69,4 +49,4 @@ export const checkAdvertisingActivity: [
       },
     };
   },
-];
+] as const;
