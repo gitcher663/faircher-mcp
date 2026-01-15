@@ -1,5 +1,6 @@
 import { createServer } from "http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { checkAdvertisingActivity } from "./tools/checkAdvertisingActivity.js";
 
 const mcp = new McpServer({
@@ -13,18 +14,22 @@ mcp.registerTool(
   checkAdvertisingActivity.handler
 );
 
+const transport = new StreamableHTTPServerTransport({
+  sessionIdGenerator: undefined,
+});
+
 const server = createServer(async (req, res) => {
-  if (req.method === "POST") {
-    await mcp.handleHttpRequest(req, res);
+  if (req.method === "GET" || req.method === "POST") {
+    await transport.handleRequest(req, res);
     return;
   }
 
-  // Health check / browser hit
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Faircher MCP running");
+  res.writeHead(405, { "Content-Type": "text/plain" });
+  res.end("Method Not Allowed");
 });
 
 const port = Number(process.env.PORT) || 3000;
+await mcp.connect(transport);
 server.listen(port, () => {
   console.log(`MCP listening on ${port}`);
 });
