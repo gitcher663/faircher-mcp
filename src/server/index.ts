@@ -1,5 +1,5 @@
+import { createServer } from "http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createMcpHttpServer } from "@modelcontextprotocol/sdk/server/http.js";
 import { checkAdvertisingActivity } from "./tools/checkAdvertisingActivity.js";
 
 const mcp = new McpServer({
@@ -13,9 +13,18 @@ mcp.registerTool(
   checkAdvertisingActivity.handler
 );
 
-const server = createMcpHttpServer(mcp);
+const server = createServer(async (req, res) => {
+  if (req.method === "POST") {
+    await mcp.handleHttpRequest(req, res);
+    return;
+  }
+
+  // Health check / browser hit
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Faircher MCP running");
+});
 
 const port = Number(process.env.PORT) || 3000;
 server.listen(port, () => {
-  console.log(`Faircher MCP listening on port ${port}`);
+  console.log(`MCP listening on ${port}`);
 });
