@@ -1,1 +1,26 @@
+{
+  "name": "faircher",
+  "description": "Faircher is a research and intelligence platform for web, news, and advertising data.",
+  "tools": [
+    {
+      "name": "search",
+      "description": "Perform general web research and discovery",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["web"],
+            "default": "web"
+          }
+        },
+        "required": ["query"]
+      }
+    }
+  ]
+}
 
