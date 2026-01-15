@@ -1,55 +1,41 @@
 import { z } from "zod";
-import { createClient } from "@modelcontextprotocol/sdk/client/index.js";
 
-/**
- * Create an MCP client that talks to SerpApi's hosted MCP server.
- * The API key is part of the URL per SerpApi spec.
- */
-const serpApiClient = createClient({
-  type: "http",
-  url: `https://mcp.serpapi.com/${process.env.SERPAPI_API_KEY}/mcp`,
-});
-
-export const checkAdvertisingActivity = [
+export const checkAdvertisingActivity: [
+  string,
+  any,
+  (args: any) => Promise<any>
+] = [
   "check_advertising_activity",
   {
     title: "Check advertising activity",
     description:
       "Checks Google Ads Transparency Center for advertising activity related to a domain",
     inputSchema: {
-      domain: z.string().describe("Company domain, e.g. apple.com"),
+      domain: z.string(),
       region: z.string().optional(),
       creative_format: z.enum(["text", "image", "video"]).optional(),
-    },
-    _meta: {
-      "openai/outputTemplate": "ui://widget/faircher.html",
-      "openai/annotations": {
-        readOnlyHint: true,
-        openWorldHint: false,
-        destructiveHint: false,
-      },
     },
   },
 
   async ({ domain, region, creative_format }) => {
-    /**
-     * Call SerpApi MCP unified search tool.
-     * NOTE: Tool name MUST match what SerpApi MCP exposes.
-     * If this fails, inspect with MCP Inspector and adjust.
-     */
-    const serpResult = await serpApiClient.callTool("search", {
+    const params = new URLSearchParams({
       engine: "google_ads_transparency_center",
       text: domain,
-      ...(region ? { region } : {}),
-      ...(creative_format ? { creative_format } : {}),
+      api_key: process.env.SERPAPI_API_KEY!,
     });
 
-    const adCreatives = serpResult?.ad_creatives ?? [];
+    if (region) params.set("region", region);
+    if (creative_format) params.set("creative_format", creative_format);
+
+    const res = await fetch(
+      `https://serpapi.com/search.json?${params.toString()}`
+    );
+    const data = await res.json();
 
     return {
       structuredContent: {
         domain,
-        ads_found: adCreatives.length,
+        ads_found: data.ad_creatives?.length ?? 0,
       },
       content: [
         {
@@ -58,8 +44,8 @@ export const checkAdvertisingActivity = [
         },
       ],
       _meta: {
-        ad_creatives: adCreatives,
-        pagination: serpResult?.serpapi_pagination ?? null,
+        ad_creatives: data.ad_creatives ?? [],
+        pagination: data.serpapi_pagination ?? null,
       },
     };
   },
