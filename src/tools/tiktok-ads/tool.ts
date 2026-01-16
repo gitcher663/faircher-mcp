@@ -7,6 +7,13 @@ export const tiktokAdsTool = {
     title: "TikTok ads lookup",
     description: "Placeholder for TikTok Ads activity detection.",
     inputSchema: tiktokAdsInputSchema,
+    annotations: {
+      title: "TikTok ads lookup",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
 
   async handler(args: { entity: string; region?: string }) {

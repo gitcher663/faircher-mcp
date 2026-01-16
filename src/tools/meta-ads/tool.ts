@@ -7,6 +7,13 @@ export const metaAdsTool = {
     title: "Meta ads lookup",
     description: "Placeholder for Meta Ads activity detection.",
     inputSchema: metaAdsInputSchema,
+    annotations: {
+      title: "Meta ads lookup",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
 
   async handler(args: { entity: string; region?: string }) {
