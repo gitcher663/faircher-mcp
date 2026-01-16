@@ -25,6 +25,13 @@ export const activityScanTool = {
     description:
       "Determines whether a brand, business, or domain is actively advertising across major paid channels.",
     inputSchema: activityScanInputSchema,
+    annotations: {
+      title: "Advertising activity scan",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
 
   async handler(args: ActivityScanArgs) {
@@ -34,6 +41,7 @@ export const activityScanTool = {
 
     if (!entity) {
       return {
+        isError: true,
         content: [
           {
             type: "text" as const,
@@ -51,6 +59,7 @@ export const activityScanTool = {
 
     if (!SEARCHAPI_KEY) {
       return {
+        isError: true,
         content: [
           {
             type: "text" as const,
@@ -191,6 +200,21 @@ export const activityScanTool = {
     } catch (error) {
       confidence = "unknown";
       evidenceSummary = "Error while checking advertising activity.";
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text" as const,
+            text: "Error while checking advertising activity.",
+          },
+        ],
+        _meta: {
+          is_advertising: false,
+          channels_detected: [],
+          confidence,
+          evidence_summary: evidenceSummary,
+        },
+      };
     }
 
     const isAdvertising = channelsDetected.length > 0;

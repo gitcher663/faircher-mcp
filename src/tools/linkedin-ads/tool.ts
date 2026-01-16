@@ -7,6 +7,13 @@ export const linkedinAdsTool = {
     title: "LinkedIn ads lookup",
     description: "Placeholder for LinkedIn Ads activity detection.",
     inputSchema: linkedinAdsInputSchema,
+    annotations: {
+      title: "LinkedIn ads lookup",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
 
   async handler(args: { entity: string; region?: string }) {

@@ -9,16 +9,39 @@ export const googleAdsTool = {
     description:
       "Checks for advertising activity on Google Ads using the Google Ads Transparency Center Advertiser Search (SearchAPI).",
     inputSchema: googleAdsInputSchema,
+    annotations: {
+      title: "Check Google Ads activity",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
 
   async handler(args: {
     domain: string;
     region?: string;
   }) {
+    if (!process.env.SEARCHAPI_API_KEY) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text" as const,
+            text: "SEARCHAPI_API_KEY is not configured for Google Ads lookup.",
+          },
+        ],
+        _meta: {
+          channel: "google_ads",
+          signal: "unknown",
+        },
+      };
+    }
+
     const params = new URLSearchParams({
       engine: "google_ads_transparency_center_advertiser_search",
       q: args.domain,
-      api_key: process.env.SEARCHAPI_API_KEY!,
+      api_key: process.env.SEARCHAPI_API_KEY,
     });
 
     if (args.region) {
@@ -30,9 +53,19 @@ export const googleAdsTool = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        `SearchAPI Google Ads request failed (${response.status})`
-      );
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text" as const,
+            text: `SearchAPI Google Ads request failed (${response.status}).`,
+          },
+        ],
+        _meta: {
+          channel: "google_ads",
+          signal: "unknown",
+        },
+      };
     }
 
     const data = await response.json();
