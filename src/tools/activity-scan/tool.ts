@@ -10,7 +10,7 @@ type ActivityScanArgs = {
 };
 
 /**
- * advertising_activity_scan
+ * ad_intelligence
  *
  * Determines whether a brand, business, or domain
  * is actively advertising on major paid channels.
@@ -18,7 +18,7 @@ type ActivityScanArgs = {
  * ChatGPT-safe, deterministic, backend-only.
  */
 export const activityScanTool = {
-  name: "advertising.activity_scan",
+  name: "ad_intelligence",
 
   definition: {
     title: "Advertising activity scan",
