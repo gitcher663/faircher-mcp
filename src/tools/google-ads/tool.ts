@@ -1,17 +1,13 @@
-import { z } from "zod";
+import { googleAdsInputSchema } from "./schema.js";
 
-export const checkAdvertisingActivity = {
+export const googleAdsTool = {
   name: "advertising.activity_lookup",
 
   definition: {
     title: "Check advertising activity",
     description:
       "Looks up advertising activity using the Google Ads Transparency Center.",
-    inputSchema: {
-      domain: z.string(),
-      region: z.string().optional(),
-      creative_format: z.enum(["text", "image", "video"]).optional(),
-    },
+    inputSchema: googleAdsInputSchema,
   },
 
   async handler(args: {
