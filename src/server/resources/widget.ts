@@ -22,7 +22,7 @@ export function registerWidget(server: McpServer) {
           _meta: {
             "openai/widgetPrefersBorder": true,
             "openai/widgetCSP": {
-              connect_domains: ["https://serpapi.com"],
+              connect_domains: ["https://searchapi.io"],
               resource_domains: ["https://*.oaistatic.com"],
             },
           },

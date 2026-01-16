@@ -1,8 +1,8 @@
-# Ad Activity Scan Tool
+# Ad Activity Scan Tool (`ad_intelligence`)
 
 ## Purpose
 
-The Ad Activity Scan tool determines whether a business, brand, or domain is actively advertising, and identifies the channels where advertising activity is detected.
+The Ad Activity Scan tool (`ad_intelligence`) determines whether a business, brand, or domain is actively advertising, and identifies the channels where advertising activity is detected.
 
 This tool is designed for:
 - Ad sales qualification and prospecting

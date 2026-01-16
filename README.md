@@ -5,8 +5,12 @@ activity across search, display, social, streaming, and broadcast channels.
 
 This MCP server exposes FairCher capabilities to the ChatGPT UI.
 
-## Tool
+## Tools
 - `ad_intelligence` – analyze advertising activity for a brand or domain
+- `google_ads.activity_lookup` – Google Ads activity presence lookup
+- `meta_ads_lookup` – Meta Ads presence lookup (placeholder)
+- `tiktok_ads_lookup` – TikTok Ads presence lookup (placeholder)
+- `linkedin_ads_lookup` – LinkedIn Ads presence lookup (placeholder)
 
 ## Input
 - Brand name or domain (required)
@@ -17,7 +21,7 @@ FairCher uses third-party data providers internally.
 Providers are implementation details and may vary by channel.
 
 ## Environment Variables
-- `SERPAPI_API_KEY` (required)
+- `SEARCHAPI_API_KEY` (required)
 
 ## Deployment
 Deploy on Railway or any Node.js-compatible platform.
