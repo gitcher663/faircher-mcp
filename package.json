@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "description": "Faircher MCP server for advertiser activity",
   "type": "module",
-  "main": "dist/server/index.js",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server/index.js",
-    "dev": "ts-node src/server/index.ts"
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts"
   },
   "keywords": [
     "mcp",
