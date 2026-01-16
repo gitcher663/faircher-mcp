@@ -1,47 +1,74 @@
 import { googleAdsInputSchema } from "./schema.js";
 
 export const googleAdsTool = {
-  name: "advertising.activity_lookup",
+  // Keep the tool scoped to Google Ads
+  name: "google_ads.activity_lookup",
 
   definition: {
-    title: "Check advertising activity",
+    title: "Check Google Ads activity",
     description:
-      "Looks up advertising activity using the Google Ads Transparency Center.",
+      "Checks for advertising activity on Google Ads using the Google Ads Transparency Center Advertiser Search (SearchAPI).",
     inputSchema: googleAdsInputSchema,
   },
 
   async handler(args: {
     domain: string;
     region?: string;
-    creative_format?: "text" | "image" | "video";
   }) {
     const params = new URLSearchParams({
-      engine: "google_ads_transparency_center",
-      text: args.domain,
-      api_key: process.env.SERPAPI_API_KEY!,
+      engine: "google_ads_transparency_center_advertiser_search",
+      q: args.domain,
+      api_key: process.env.SEARCHAPI_API_KEY!,
     });
 
-    if (args.region) params.set("region", args.region);
-    if (args.creative_format) {
-      params.set("creative_format", args.creative_format);
+    if (args.region) {
+      params.set("region", args.region);
     }
 
-    const res = await fetch(
-      `https://serpapi.com/search.json?${params.toString()}`
+    const response = await fetch(
+      `https://www.searchapi.io/api/v1/search?${params.toString()}`
     );
 
-    const data = await res.json();
+    if (!response.ok) {
+      throw new Error(
+        `SearchAPI Google Ads request failed (${response.status})`
+      );
+    }
+
+    const data = await response.json();
+
+    const advertisers = Array.isArray(data.advertisers)
+      ? data.advertisers
+      : [];
+
+    /**
+     * Presence detection rule:
+     * If any advertiser has ads_count.upper > 0,
+     * we treat Google Ads activity as detected.
+     */
+    const hasActivity = advertisers.some(
+      (adv: any) => adv.ads_count && adv.ads_count.upper > 0
+    );
 
     return {
       content: [
         {
           type: "text" as const,
-          text: `Found ${data.ad_creatives?.length ?? 0} ads for ${args.domain}`,
+          text: hasActivity
+            ? "Yes — advertising activity detected on Google Ads."
+            : "No advertising signal detected on Google Ads.",
         },
       ],
       _meta: {
-        ad_creatives: data.ad_creatives ?? [],
-        pagination: data.serpapi_pagination ?? null,
+        channel: "google_ads",
+        signal: hasActivity ? "detected" : "none",
+        advertisers: advertisers.map((adv: any) => ({
+          name: adv.name,
+          id: adv.id,
+          region: adv.region,
+          ads_count: adv.ads_count,
+          is_verified: adv.is_verified,
+        })),
       },
     };
   },
