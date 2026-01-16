@@ -3,7 +3,7 @@
   "description": "FairCher is an ad intelligence tool that provides transparency into search, display, social, streaming, and broadcast advertising.",
   "tools": [
     {
-      "name": "advertising_activity_scan",
+      "name": "ad_intelligence",
       "description": "Determines whether a business, brand, or domain is actively advertising across major paid media channels.",
       "inputSchema": {
         "type": "object",

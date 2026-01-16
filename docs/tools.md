@@ -1,6 +1,6 @@
 # MCP Tools
 
-## advertising_activity_scan
+## ad_intelligence
 Routing and intent classification tool to determine which advertising channels should be checked.
 
 ## advertising.activity_lookup
