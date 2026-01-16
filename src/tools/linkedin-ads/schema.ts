@@ -1,14 +1,9 @@
-export const linkedinAdsInputSchema = {
-  type: "object",
-  required: ["entity"],
-  properties: {
-    entity: {
-      type: "string",
-      description: "Brand name or domain to evaluate.",
-    },
-    region: {
-      type: "string",
-      description: "Optional region filter (e.g. US, EU).",
-    },
-  },
-} as const;
+import { z } from "zod";
+
+export const linkedinAdsInputSchema = z.object({
+  entity: z.string().describe("Brand name or domain to evaluate."),
+  region: z
+    .string()
+    .describe("Optional region filter (e.g. US, EU).")
+    .optional(),
+});

@@ -9,7 +9,11 @@ const mcp = new McpServer({
 });
 
 for (const tool of tools) {
-  mcp.registerTool(tool.name, tool.definition, tool.handler);
+  mcp.registerTool(
+    tool.name,
+    tool.definition as Parameters<typeof mcp.registerTool>[1],
+    tool.handler as Parameters<typeof mcp.registerTool>[2]
+  );
 }
 
 const transport = new StreamableHTTPServerTransport({
