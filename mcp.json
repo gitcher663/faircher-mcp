@@ -27,7 +27,7 @@
       }
     },
     {
-      "name": "advertising.activity_lookup",
+      "name": "google_ads.activity_lookup",
       "description": "Looks up advertising activity using the Google Ads Transparency Center.",
       "inputSchema": {
         "type": "object",
@@ -40,11 +40,60 @@
           "region": {
             "type": "string",
             "description": "Optional region filter (e.g. US, EU)."
-          },
-          "creative_format": {
+          }
+        }
+      }
+    },
+    {
+      "name": "meta_ads_lookup",
+      "description": "Placeholder for Meta Ads detection.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["entity"],
+        "properties": {
+          "entity": {
             "type": "string",
-            "enum": ["text", "image", "video"],
-            "description": "Optional creative format filter."
+            "description": "Brand name or domain (e.g. nike.com, Coca-Cola)"
+          },
+          "region": {
+            "type": "string",
+            "description": "Optional region filter (e.g. US, EU)."
+          }
+        }
+      }
+    },
+    {
+      "name": "tiktok_ads_lookup",
+      "description": "Placeholder for TikTok Ads detection.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["entity"],
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "Brand name or domain (e.g. nike.com, Coca-Cola)"
+          },
+          "region": {
+            "type": "string",
+            "description": "Optional region filter (e.g. US, EU)."
+          }
+        }
+      }
+    },
+    {
+      "name": "linkedin_ads_lookup",
+      "description": "Placeholder for LinkedIn Ads detection.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["entity"],
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "Brand name or domain (e.g. nike.com, Coca-Cola)"
+          },
+          "region": {
+            "type": "string",
+            "description": "Optional region filter (e.g. US, EU)."
           }
         }
       }

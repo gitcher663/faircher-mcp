@@ -3,7 +3,7 @@
 ## ad_intelligence
 Routing and intent classification tool to determine which advertising channels should be checked.
 
-## advertising.activity_lookup
+## google_ads.activity_lookup
 Google Ads Transparency Center lookup for active advertising creatives.
 
 ## meta_ads_lookup
